@@ -1,0 +1,99 @@
+/* Fix spacing from fixed-top navbar */
+body {
+  padding-top: 70px;
+  background-color: #f8f9fa; /* light gray background like Corey's */
+}
+
+/* Optional custom navbar color (like Corey's bg-steel) */
+.bg-steel {
+  background-color: #5f788a;
+}
+
+/* Navbar styles */
+.site-header .navbar-brand {
+  font-weight: bold;
+  color: #ffffff !important;
+}
+
+.site-header .navbar-nav .nav-link {
+  color: #ffffff !important;
+}
+
+.site-header .navbar-nav .nav-link:hover {
+  color: #dcdcdc !important;
+}
+
+.site-header .navbar-nav .nav-link.active {
+  font-weight: 500;
+}
+
+/* Sidebar card */
+.content-section {
+  background: #ffffff;
+  padding: 10px 20px;
+  border: 1px solid #dddddd;
+  border-radius: 3px;
+  margin-bottom: 20px;
+}
+
+/* Post title */
+.article-title {
+  color: #444444;
+  font-weight: bold;
+  font-size: 1.4rem;
+}
+
+a.article-title:hover {
+  color: #428bca;
+  text-decoration: none;
+}
+
+/* Post content */
+.article-content {
+  white-space: pre-line;
+}
+
+/* Author avatar */
+.article-img {
+  height: 65px;
+  width: 65px;
+  margin-right: 16px;
+  border-radius: 50%;
+}
+
+/* Post metadata */
+.article-metadata {
+  padding-bottom: 1px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #e3e3e3;
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.article-metadata a:hover {
+  color: #333;
+  text-decoration: none;
+}
+
+.article-svg {
+  width: 25px;
+  height: 25px;
+  vertical-align: middle;
+}
+
+/* Account page image */
+.account-img {
+  height: 125px;
+  width: 125px;
+  margin-right: 20px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+}
+
+/* Account heading text */
+.account-heading {
+  font-size: 2.5rem;
+  font-weight: 500;
+}
+
+
