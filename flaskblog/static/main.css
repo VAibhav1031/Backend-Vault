@@ -97,4 +97,14 @@ a.article-title:hover {
   font-weight: 500;
 }
 
+/* Specially for the author in home page*/
+.author-link {
+  text-decoration: none;
+  
+}
+
+.author-link:hover {
+  text-decoration: underline !important;
+  color: #87CEEB !important;
+}
 
