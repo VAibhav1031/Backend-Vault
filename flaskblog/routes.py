@@ -1,6 +1,9 @@
+import os
+import secrets
+from PIL import Image
 from flask import render_template, url_for, flash, redirect, request
 from flaskblog import app, db, bcrypt
-from flaskblog.forms import RegistrationForm, LoginForm
+from flaskblog.forms import RegistrationForm, LoginForm, UpdateAccountForm
 from flaskblog.models import User, Post
 from flask_login import login_user, current_user, logout_user, login_required
 
@@ -74,7 +77,37 @@ def logout():
     return redirect(url_for("home"))
 
 
-@app.route("/account")
+def save_picture(form_picture):
+    random_hex = secrets.token_hex(8)
+    _, f_ext = os.path.splitext(form_picture.filename)
+    picture_fn = random_hex + f_ext
+    picture_path = os.path.join(app.root_path, "static/profile_pics", picture_fn)
+    output_size = (205, 205)
+    i = Image.open(form_picture)
+    i.thumbnail(output_size)
+    i.save(picture_path)
+
+    return picture_fn
+
+
+@app.route("/account", methods=["GET", "POST"])
 @login_required  # this  make  things  gooood  for us that we can only goto or access it only when we are login
 def account():
-    return render_template("account.html", title="Account")
+    form = UpdateAccountForm()
+    # so  this  is  only to validate  if you have written right values ornot,  if form is  empty is False.
+    if form.validate_on_submit():
+        if form.picture.data:
+            picture_file = save_picture(form.picture.data)
+            current_user.image_file = picture_file
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        db.session.commit()
+        flash("You Account has been Updated!!", "success")
+        return redirect(url_for("account"))
+    elif request.method == "GET":  # will  retrieve the values and populate the sections
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+    image_file = url_for("static", filename="profile_pics/" + current_user.image_file)
+    return render_template(
+        "account.html", title="Account", image_file=image_file, form=form
+    )

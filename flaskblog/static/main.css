@@ -83,10 +83,11 @@ a.article-title:hover {
 
 /* Account page image */
 .account-img {
-  height: 125px;
-  width: 125px;
+  height: 205px;
+  width: 205px;
   margin-right: 20px;
   margin-bottom: 16px;
+  object-fit: cover;
   border-radius: 50%;
 }
 
