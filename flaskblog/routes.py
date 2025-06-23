@@ -11,7 +11,8 @@ from flask_login import login_user, current_user, logout_user, login_required
 @app.route("/")
 @app.route("/home")
 def home():
-    posts = Post.query.all()
+    page = request.args.get("page", 1, type=int)
+    posts = Post.query.order_by(Post.date_posted.desc()).paginate(page=page, per_page=5)
     return render_template("home.html", posts=posts)
 
 
@@ -66,8 +67,7 @@ def save_picture(form_picture):
     random_hex = secrets.token_hex(8)
     _, f_ext = os.path.splitext(form_picture.filename)
     picture_fn = random_hex + f_ext
-    picture_path = os.path.join(
-        app.root_path, "static/profile_pics", picture_fn)
+    picture_path = os.path.join(app.root_path, "static/profile_pics", picture_fn)
     output_size = (205, 205)
     i = Image.open(form_picture)
     i.thumbnail(output_size)
@@ -93,8 +93,7 @@ def account():
     elif request.method == "GET":  # will  retrieve the values and populate the sections
         form.username.data = current_user.username
         form.email.data = current_user.email
-    image_file = url_for(
-        "static", filename="profile_pics/" + current_user.image_file)
+    image_file = url_for("static", filename="profile_pics/" + current_user.image_file)
     return render_template(
         "account.html", title="Account", image_file=image_file, form=form
     )
@@ -160,3 +159,16 @@ def delete_post(post_id):
     db.session.commit()
     flash("Your post has been deleted!", "success")
     return redirect(url_for("home"))
+
+
+@app.route("/user/<string:username>")
+def user_posts(username):
+    page = request.args.get("page", 1, type=int)
+    user = User.query.filter_by(username=username).first_or_404()
+    posts = (
+        Post.query.filter_by(author=user)
+        .order_by(Post.date_posted.desc())
+        .paginate(page=page, per_page=5)
+    )
+
+    return render_template("user_post.html", posts=posts, user=user)
