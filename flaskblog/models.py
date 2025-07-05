@@ -1,7 +1,8 @@
 from datetime import datetime
 from itsdangerous import URLSafeTimedSerializer as Serializer
-from flaskblog import db, login_manager, app
+from flaskblog import db, login_manager
 from flask_login import UserMixin
+from flask import current_app
 
 
 @login_manager.user_loader
@@ -23,12 +24,12 @@ class User(db.Model, UserMixin):
 
     def get_reset_token(self):
         # .decode("utf-8") no decode required in new URLSafeTimedSerializer
-        s = Serializer(app.config["SECRET_KEY"])
+        s = Serializer(current_app.config["SECRET_KEY"])
         return s.dumps({"user_id": self.id}, salt="password-reset")
 
     @staticmethod
     def verify_reset_token(token, expires_sec=1800):
-        s = Serializer(app.config["SECRET_KEY"])
+        s = Serializer(current_app.config["SECRET_KEY"])
         try:
             data = s.loads(token, salt="password-reset", max_age=expires_sec)
             user_id = data["user_id"]
