@@ -16,3 +16,7 @@ uv.lock
 
 # instance / database 
 instance/
+
+# runtime_dat
+flaskblog/static/profile_pics/
+
