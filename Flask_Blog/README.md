@@ -32,9 +32,9 @@ This approach works well for small-scale projects where you want to:
 ## Requirements
 
 - Flask application
-- Cloudflare Tunnel (cloudflared)
-- Domain name
-- Local server/computer to run the application
+- Cloudflare Tunnel (cloudflared) (for linux it is mostly available in official repo or you can clone the repo and make it )
+- Domain name (buy any good universal cheap domain, best for the project mann)
+- Local server/computer to run the application 
 
 ## Usage
 
@@ -42,4 +42,4 @@ This approach works well for small-scale projects where you want to:
 2. Start the Cloudflare Tunnel
 3. Your website will be accessible through your domain/ you can buy some cheap  good domain service(check renewal also)
 
-Note: The website availability depends on keeping both the tunnel and server running.
+Note: The website availability depends on keeping both the tunnel and server running (can use systemd, or tmux  for linux user).
