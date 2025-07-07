@@ -19,4 +19,4 @@ instance/
 
 # runtime_dat
 flaskblog/static/profile_pics/
-
+!flaskblog/static/profile_pics/.gitkeep
