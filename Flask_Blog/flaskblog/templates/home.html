@@ -9,9 +9,20 @@
           <small class="text-muted">{{ post.date_posted.strftime('%d-%m-%Y') }}</small>
         </div>
         <h2><a class="article-title" href="{{ url_for('posts.post', post_id=post.id) }}">{{ post.title }}</a></h2>
-        <p class="article-content">{{ post.content }}</p>
+       
+
+        {% set preview = post.content[:250] %}
+        {% set remainder = post.content[250:].strip() %}
+
+        <p class="article-content">
+          {{ preview }} 
+          {% if remainder %}
+            <span class="more-text d-none">{{ remainder }}</span>
+            ... <a href="#" class="read-more" data-id="{{ post.id }}">Read More</a>
+          {% endif %}
+        </p>
       </div>
-    </article>
+  </article>
   {% endfor %}
   {% for page_num in posts.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
     {% if page_num %}
