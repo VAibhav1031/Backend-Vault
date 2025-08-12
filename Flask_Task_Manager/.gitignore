@@ -1,0 +1,12 @@
+# unecessary compile .pyc files 
+/flask_task_manager/__pycache__
+__pycache__/ 
+
+#unecessary virtual env
+.venv
+
+# any creds
+.env
+
+# unecessary db push
+instance/
