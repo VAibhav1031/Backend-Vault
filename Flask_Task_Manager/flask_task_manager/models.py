@@ -5,7 +5,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
     password_hash = db.Column(db.String(60), nullable=False)
-    tasks = db.relationship("Tasks", backref="user", lazy=True)
+    tasks = db.relationship("Task", backref="user", lazy=True)
 
 
 # okay currently if i want to find the tasks for the user as normal way

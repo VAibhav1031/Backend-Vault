@@ -1,0 +1,43 @@
+[project]
+name = "flask_task_manager"
+version = "0.1.0"
+description = "A backend API service with authentication and deployment-ready structure."
+authors = [
+    { name = "Vaibhav"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0",
+    "flask-sqlalchemy>=3.1",
+    "flask-jwt-extended>=4.6",
+    # "psycopg2-binary>=2.9",     # PostgreSQL driver (if using Postgres)
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "black>=24.0",
+    "ruff>=0.4",
+]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["flask_task_manager"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "B"]
+

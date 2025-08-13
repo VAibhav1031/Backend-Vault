@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from .config import DevConfig
+from flask_task_manager.config import DevConfig
 from flask import Flask
 
 
@@ -13,7 +13,7 @@ def create_app(config_class=DevConfig):
         app
     )  # this will create the instance to use the flask app outside the main run
 
-    from .routes import main
+    from flask_task_manager.routes import main
 
     app.register_blueprint(main)
 

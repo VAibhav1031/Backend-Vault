@@ -1,15 +1,19 @@
-# unecessary compile .pyc files 
 /flask_task_manager/__pycache__
-__pycache__/ 
-
+__pycache__/
+  
 #unecessary virtual env
 .venv
 
-# any creds
-.env
+# any creds 
+,env
 
-# unecessary db push
+# unecessary db push 
 instance/
 
-# test files 
-test/
+# # test files-        
+tests/
+
+
+# setup files 
+*.egg-info
+
