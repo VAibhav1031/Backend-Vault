@@ -1,9 +1,11 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_task_manager.config import DevConfig
 from flask import Flask
+from flask_bcrypt import Bcrypt
 
 
 db = SQLAlchemy()
+bcrypt = Bcrypt()
 
 
 def create_app(config_class=DevConfig):
@@ -12,6 +14,7 @@ def create_app(config_class=DevConfig):
     db.init_app(
         app
     )  # this will create the instance to use the flask app outside the main run
+    bcrypt.init_app()
 
     from flask_task_manager.routes import main
 
