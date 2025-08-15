@@ -7,7 +7,7 @@ import datetime
 import jwt
 
 
-main = Blueprint("main", __name__)
+main = Blueprint("main", __name__, url_prefix="/api/")
 
 
 # now lets add the user auth something
@@ -15,9 +15,8 @@ main = Blueprint("main", __name__)
 @main.route("/signup", methods=["POST"])
 def signup():
     data = request.get_json()
-    hashed_password = bcrypt.generate_password_hash(data["password_hash"]).decode(
-        "utf-8"
-    )
+    hashed_password = bcrypt.generate_password_hash(
+        data["password"]).decode("utf-8")
     user_name = data["username"]
     new_user = User(username=user_name, password_hash=hashed_password)
     db.session.add(new_user)
@@ -31,7 +30,7 @@ def signup():
 def generate_token(user_id):
     payload = {
         "user_id": user_id,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
     }
     secret_key = current_app.config["SECRET_KEY"]
     return jwt.encode(payload, secret_key, algorithm="HS256")
@@ -84,21 +83,42 @@ def token_required(func):
     return wrapper
 
 
-@main.route("/tasks<int:id>", methods=["GET"])
+@main.route("/tasks", methods=["GET"])
 @token_required
-def get_tasks(user_id, id):
-    task = Task.query.filter_by(id=id).first()
+def get_tasks_all(user_id):
+    tasks = Task.query.filter_by(
+        user_id=user_id
+    ).all()  # will get all the ask of the user
 
+    if not tasks:
+        return jsonify([])
     return jsonify(
         [
             {
-                "id": task.id,
-                "title": task.title,
-                "description": task.description,
-                "completion": task.completion,
-                "user_id": task.user_id,
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "completion": t.completion,
+                "user_id": t.user_id,
             }
+            for t in tasks
         ]
+    )
+
+
+@main.route("/tasks/<int:task_id>", methods=["GET"])
+@token_required
+def get_task(user_id, task_id):
+    task = Task.query.filter_by(id=task_id, user_id=user_id).first()
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+    return jsonify(
+        {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "completion": task.completion,
+        }
     )
 
 

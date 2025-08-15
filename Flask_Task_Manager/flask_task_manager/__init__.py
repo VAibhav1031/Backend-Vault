@@ -14,7 +14,7 @@ def create_app(config_class=DevConfig):
     db.init_app(
         app
     )  # this will create the instance to use the flask app outside the main run
-    bcrypt.init_app()
+    bcrypt.init_app(app)
 
     from flask_task_manager.routes import main
 
