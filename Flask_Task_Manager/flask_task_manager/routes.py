@@ -1,11 +1,9 @@
-from flask import Blueprint, jsonify, request, abort, current_app
+from flask import Blueprint, jsonify, request, abort
 from flask_task_manager import db
 from flask_task_manager.models import User, Task
 from flask_task_manager import bcrypt
-from functools import wraps
-import datetime
-import jwt
-
+from utils import token_required, generate_token
+from schemas import UserSchema, AddTask, ValidationError
 
 main = Blueprint("main", __name__, url_prefix="/api/")
 
@@ -14,7 +12,12 @@ main = Blueprint("main", __name__, url_prefix="/api/")
 # since it is backend service there is no need for the GET , json will do
 @main.route("/signup", methods=["POST"])
 def signup():
-    data = request.get_json()
+    schema = UserSchema()
+    try:
+        data = schema.loads(request.get_json())
+    except ValidationError as err:
+        return {"erros": err.messages}, 400
+
     hashed_password = bcrypt.generate_password_hash(
         data["password"]).decode("utf-8")
     user_name = data["username"]
@@ -25,28 +28,6 @@ def signup():
 
 
 # this is the most important part because we are generatingt the token , which is necessary for the stateless feature
-
-
-def generate_token(user_id):
-    payload = {
-        "user_id": user_id,
-        "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
-    }
-    secret_key = current_app.config["SECRET_KEY"]
-    return jwt.encode(payload, secret_key, algorithm="HS256")
-
-
-def decode_token(token):
-    try:
-        payload = jwt.decode(
-            token, current_app.config["SECRET_KEY"], algorithms="HS256"
-        )
-        return payload["user_id"]
-
-    except jwt.ExpiredSignatureError:
-        return None  # token_expired
-    except jwt.InvalidTokenError:
-        return None  # invalid
 
 
 @main.route("/login", methods=["POST"])
@@ -61,26 +42,6 @@ def login():
     token = generate_token(user.id)
     # here we have to give the jwt token for future
     return jsonify({"token": token})
-
-
-# Authorization: Bearer <your_jwt_here> the  payload must be this  when it is sent  by the client
-
-
-def token_required(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Token is missing "}), 401
-
-        token = auth_header.split(" ")[1]
-        user_id = decode_token(token)
-        if not user_id:
-            return jsonify({"error": "Token is invalid"}), 401
-
-        return func(user_id, *args, **kwargs)
-
-    return wrapper
 
 
 @main.route("/tasks", methods=["GET"])
@@ -125,7 +86,16 @@ def get_task(user_id, task_id):
 @main.route("/tasks", methods=["POST"])
 @token_required
 def add_task(user_id):
-    data = request.get_json()
+    schema = AddTask()
+    try:
+        data = schema.loads(request.get_json())
+    except ValidationError as err:
+        return {"errors": err.messages}, 400
+
+    if data.get("user_id"):
+        # no user_id is required  while adding task , mostly JWT token will get that
+        return jsonify({"error": "Not Authorized"}), 403
+
     new_task = Task(
         title=data["title"],
         description=data.get("description", ""),
