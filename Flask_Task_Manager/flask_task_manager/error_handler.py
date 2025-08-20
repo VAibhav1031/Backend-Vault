@@ -14,53 +14,47 @@ def _make_instance():
     return f"{request.path}#{uuid.uuid4()}"
 
 
-def handle_marshmallow_error(err):
-    response = {
-        "errors": {
-            "type": "ValidationError",
-            "status": 400,
-            "message": central_registry["INVALID_INPUT"],
-            "details": err.messages,
-        }
-    }
-    return jsonify(response), 400
-
-
-def user_already_exists(msg):
+def error_response(code, status, message=None, reason=None, details=None):
     return jsonify(
         {
             "errors": {
-                "type": "User already exist",
-                "status": 409,
-                "message": msg if msg else central_registry["USER_ALREADY_EXISTS"],
-                "instance": "A",
+                "code": code,
+                "type": code.lower(),  # machine-readable
+                "status": status,
+                "message": message or central_registry.get(code, "Unknown error"),
+                "reason": reason,
+                "details": details,
+                "instance": _make_instance(),
             }
         }
-    ), 409
+    ), status
 
 
-def unauthorized_Error(msg):
-    return jsonify(
-        {
-            "errors": {
-                "type": "Unauthorized",
-                "status": 401,
-                "message": msg if msg else central_registry["UNAUTHORIZED"],
-                "instance": "a",
-            }
-        }
-    ), 401  # it is good to send the code beside for error
+def handle_marshmallow_error(err, msg=None):
+    return error_response(
+        code="INVALID_INPUT",
+        status=400,
+        message=msg,
+        details=err.messages,
+    )
 
 
-def token_error(token_msg):
-    # I know it is bit same as the unauthorized_Error but , in this we will give is the token is expired or invalid more clearer then privious
-    return jsonify(
-        {
-            "errors": {
-                "type": "token error",
-                "status": 401,
-                "message": token_msg,
-                "instance": "a",
-            }
-        }
-    ), 401
+def not_found(msg=None):
+    return error_response(code="NOT_FOUND", status=404, message=msg)
+
+
+def user_already_exists(msg=None):
+    return error_response(code="USER_ALREADY_EXISTS", status=409, message=msg)
+
+
+def unauthorized_error(msg=None, reason=None):
+    return error_response(
+        code="UNAUTHORIZED",
+        status=401,
+        message=msg,
+        reason=reason,  # could be used  for the token errors
+    )  #
+
+
+def forbidden_access(msg=None):
+    return error_response(code="FORBIDDEN_ACCESS", status=403, message=msg)
