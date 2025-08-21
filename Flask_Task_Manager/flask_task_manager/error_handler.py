@@ -58,3 +58,7 @@ def unauthorized_error(msg=None, reason=None):
 
 def forbidden_access(msg=None):
     return error_response(code="FORBIDDEN_ACCESS", status=403, message=msg)
+
+
+def internal_server_error(msg=None):
+    return error_response(code="INTERNAL_ERROR", status=500, message=msg)
