@@ -38,7 +38,7 @@ def token(client):
     # payload = {"username": "Rangoo", "password": "draco1234"}
     payload = {"email": "Rangoo213@gmail.com", "password": "draco1234"}
     # currently we are usingt he email as the login
-    request = client.post("/api/login", json=payload)
+    request = client.post("/api/auth/login", json=payload)
     assert request.status_code == 200
     data = request.get_json()
     assert "token" in data
@@ -100,8 +100,7 @@ def test_add(client, app, auth_headers):
 
 
 def test_add_and_delete_task(client, app, auth_headers):
-    payload = {"title": "New Test",
-               "description": "For delete test ", "user_id": 5}
+    payload = {"title": "New Test", "description": "For delete test ", "user_id": 5}
 
     response = client.post("/api/tasks", json=payload, headers=auth_headers)
     assert response.status_code == 400
@@ -110,8 +109,7 @@ def test_add_and_delete_task(client, app, auth_headers):
     return
     task_id = response.get_json()["task_id"]
 
-    delete_response = client.delete(
-        f"/api/tasks/{task_id}", headers=auth_headers)
+    delete_response = client.delete(f"/api/tasks/{task_id}", headers=auth_headers)
     assert delete_response.status_code == 200
     assert f"Task {task_id} deleted" in delete_response.get_json()["message"]
 

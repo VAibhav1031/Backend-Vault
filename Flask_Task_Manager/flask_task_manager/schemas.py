@@ -18,6 +18,19 @@ class LoginSchema(Schema):
             raise ValidationError("Either email or username is required")
 
 
-class AddTask(Schema):
+class AddUpdateTask(Schema):
     title = fields.Str(required=True)
     description = fields.Str(required=True)
+    completion = fields.Str(required=False)
+
+
+class ForgetPassword(Schema):
+    email = fields.Email(required=True)
+
+
+class VerifyOtp(Schema):
+    otp = fields.Int(required=False)
+
+
+class ResetPassword(Schema):
+    new_password = fields.Str(required=True, validate=validate.Length(min=8))

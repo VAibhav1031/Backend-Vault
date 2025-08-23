@@ -1,4 +1,5 @@
 from flask_task_manager import db
+import datetime
 
 
 class User(db.Model):
@@ -7,6 +8,8 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(60), nullable=False)
     tasks = db.relationship("Task", backref="user", lazy=True)
+
+    # id ont think to have the backref for the passwordreset
 
 
 # okay currently if i want to find the tasks for the user as normal way
@@ -27,4 +30,15 @@ class Task(db.Model):
     title = db.Column(db.String(60), nullable=False)
     description = db.Column(db.String)
     completion = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+
+class PasswordReset(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    reset_token = db.Columnd(db.String(255), nullable=False)
+    expired_at = db.Column(db.Datetime, nullable=False)
+    created_at = db.Column(
+        db.Datetime, default=datetime.utcnow(), nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    attempts = db.Column(db.Integer, default=0, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)

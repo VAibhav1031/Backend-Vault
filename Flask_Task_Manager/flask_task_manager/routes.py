@@ -1,8 +1,17 @@
 from flask import Blueprint, jsonify, request, abort
 from flask_task_manager import db
-from flask_task_manager.models import User, Task
+from .models import User, Task, PasswordReset
 from flask_task_manager import bcrypt
-from flask_task_manager.utils import token_required, generate_token
+from .utils import (
+    token_required,
+    generate_token,
+    generate_token_otp,
+    send_reset_email,
+    otp_token_chk,
+    otp_generator,
+    reset_token_chk,
+    generate_password_token,
+)
 from .error_handler import (
     handle_marshmallow_error,
     not_found,
@@ -13,11 +22,15 @@ from .error_handler import (
 )
 from flask_task_manager.schemas import (
     RegisterSchema,
-    AddTask,
+    AddUpdateTask,
     LoginSchema,
     ValidationError,
+    ForgetPassword,
+    ResetPassword,
+    VerifyOtp,
 )
 import logging
+import datetime
 
 main = Blueprint("main", __name__, url_prefix="/api/")
 
@@ -27,7 +40,7 @@ logger = logging.getLogger(__name__)
 # since it is backend service there is no need for the GET , json will do
 
 
-@main.route("/signup", methods=["POST"])
+@main.route("/auth/signup", methods=["POST"])
 def signup():
     schema = RegisterSchema()
     try:
@@ -64,8 +77,8 @@ def signup():
 
     except Exception as e:
         logger.error(
-            f"Error in creating user: username={user_name}\
-            email={email} error={e}"
+            f"Error in creating user: username={
+                user_name}email={email} error={e}"
         )
         return internal_server_error()
 
@@ -73,7 +86,7 @@ def signup():
 # this is the most important part because we are generatingt the token , which is necessary for the stateless feature
 
 
-@main.route("/login", methods=["POST"])
+@main.route("/auth/login", methods=["POST"])
 def login():
     schema = LoginSchema()
     try:
@@ -101,11 +114,128 @@ def login():
         )
         return unauthorized_error(msg="Invalid Credentials")
 
-    token = generate_token(user.id)
-    # here we have to give the jwt token for future
-    if token:
-        logger.info("Token is generated")
-    return jsonify({"token": token})
+    try:
+        token = generate_token(user.id)
+        # here we have to give the jwt token for future
+        if token:
+            logger.info("Token is generated")
+            return jsonify({"token": token})
+
+    except Exception as e:
+        logger.error(f"Token generation error:{e}")
+
+
+@main.route("/auth/forget-password", methods=["POST"])
+def forget_password():
+    # it is bit like  we send the mail to the user no since we are the backend service he/she will authenticate user with otp
+    # then if the otp written is valid then go and reser password
+    schema = ForgetPassword()
+    try:
+        data = schema.load(request.get_json())
+        logger.info("POST /forget_password requested ...")
+    except ValidationError as err:
+        logger.error(f"Input error {err.messages}")
+        return handle_marshmallow_error(err)
+
+    user = User.query.filter_by(email=data["email"]).first()
+    if user:
+        otp = otp_generator()
+        try:
+            token = generate_token_otp(data["email"], user.id, otp)
+            if token:
+                logger.info("Forget-Password Token is generated")
+                send_reset_email(user, otp)
+                logger.info(f"Email is sent: addr = {data['email']}...")
+
+                return jsonify({"otp-token": token})
+        except Exception as e:
+            logger.error(f"Token generation error:{e}")
+
+    logger.warning(f"User not found with  : email = {data['email']}")
+    not_found()
+
+
+@main.route("/auth/verify-otp", methods=["POST"])
+@otp_token_chk
+def verify_otp(token_otp, token_email):
+    schema = VerifyOtp()
+    try:
+        data = schema.load(request.get_json())
+        logger.info("POST /verif-otp requested ...")
+    except ValidationError as err:
+        logger.error(f"Input error {err.messages}")
+        return handle_marshmallow_error(err)
+
+    if data["email"] != token_email:
+        logger.warning(
+            f"Authentication failed: token mail = {
+                token_email
+            } doesnt match to client mail ={data['email']} "
+        )
+        return forbidden_access("Forbidden,Not authorized to access other Data")
+
+    if data["otp"] == token_otp:
+        logger.info("OTP Verified:  ")
+        try:
+            reset_token = generate_password_token()
+            if reset_token:
+                logger.info("Reset Token generated")
+                return jsonify({"reset-token": reset_token})
+
+        except Exception as e:
+            logger.error(f"Token generation error:{e}")
+
+        forget_pass = PasswordReset(
+            reset_token=reset_token,
+            expiry_at=datetime.utcnow() + datetime.timedelta(minutes=10),
+        )
+        db.session.add(forget_pass)
+        db.session.commit()
+
+    logger.warning("OTP is invalid")
+
+
+@main.route("/auth/reset-password", methods=["POST"])
+@reset_token_chk
+def reset_password(user_id, email):
+    schema = ResetPassword()
+    try:
+        data = schema.load(request.get_json())
+        logger.info("POST /auth/reset_password requested ...")
+    except ValidationError as err:
+        logger.error(f"Input error {err.messages}")
+        return handle_marshmallow_error(err)
+
+    user = User.query.filter_by(user_id=user_id, email=email).first()
+
+    if not user:
+        logger.warning(
+            f"User not found: user_id={user_id}, email={
+                email}, ip={request.addr}"
+        )
+        not_found()
+
+    pas_reset = (
+        PasswordReset.query.filter_by(user_id=user.id)
+        .order_by(PasswordReset.created_at.desc())
+        .first()
+    )
+
+    try:
+        new_password = bcrypt.generate_password_hash(data["new_password"])
+        user.password = new_password
+
+        if pas_reset:
+            pas_reset.used = True
+            db.session.commit()
+        logger.info(f"Password reset Sucessfull for user_id = {user_id}")
+        return jsonify({"message": "Password created Sucessfully"}), 200
+    except Exception as e:
+        if pas_reset:
+            pas_reset.attempts += 1
+            db.session.commit()
+        logger.error(f"Error ocurred in updating password: {e}")
+        internal_server_error()
 
 
 @main.route("/tasks", methods=["GET"])
@@ -154,10 +284,44 @@ def get_task(user_id, task_id):
     )
 
 
+@main.route("/task/<int:task_id>", methods=["PUT"])
+@token_required
+def update_task(user_id, task_id):
+    schema = AddUpdateTask()
+    try:
+        data = schema.load(request.get_json())
+        logger.info("PUT /task/task_id requested for update_task")
+
+    except ValidationError as err:
+        logger.error(f"Input error {err.messages}")
+        return handle_marshmallow_error(err)
+
+    task = Task.query.filter_by(id=task_id, user_id=user_id).first()
+
+    if not task:
+        logger.warning(
+            f"No Task found with \
+        task_id={task_id} , user_id={user_id}"
+        )
+        return not_found()
+
+    try:
+        task.title = data["title"]
+        task.description = data["description"]
+        db.session.commit()
+
+    except Exception as e:
+        logger.error(
+            f"Error in updating the task: user_id={user_id}"
+            f"task_id={task_id} with error={e}"
+        )
+        internal_server_error()
+
+
 @main.route("/tasks", methods=["POST"])
 @token_required
 def add_task(user_id):
-    schema = AddTask()
+    schema = AddUpdateTask()
     try:
         data = schema.load(request.get_json())
         logger.info("POST /tasks requested for add_task...")
@@ -184,9 +348,8 @@ def add_task(user_id):
         db.session.commit()
 
         logger.info(
-            f"Task added: task_id={new_task.id}, title={new_task.title}, user_id={
-                user_id
-            }"
+            f"Task added: task_id={new_task.id}"
+            f"title={new_task.title}, user_id={user_id}"
         )
 
         return jsonify({"message": "Task added", "task_id": new_task.id}), 201
@@ -201,11 +364,13 @@ def delete(user_id, task_id):
     task = db.session.get(Task, task_id) or abort(404)
     if task.user_id != user_id:
         logger.warning(
-            "task user_id doesnt matched with the accessing user_id ,Cant delete other person task !! "
+            f"task user_id doesnt match token user_id : user_id = {
+                user_id
+            }, task.user_id={task.user_id} "
         )
-        return forbidden_access("Forbidden,Not authorized to access other")
+        return forbidden_access("Forbidden,Not authorized to access other Data")
     db.session.delete(task)
     db.session.commit()
     logger.info(f"Deleted Task: task with task_id={
-                task_id} and user_id={user_id}")
+                task_id}and user_id={user_id}")
     return jsonify({"message": f"Task {id} deleted"})

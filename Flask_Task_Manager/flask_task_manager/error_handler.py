@@ -15,28 +15,36 @@ def _make_instance():
 
 
 def error_response(code, status, message=None, reason=None, details=None):
-    return jsonify(
-        {
-            "errors": {
-                "code": code,
-                "type": code.lower(),  # machine-readable
-                "status": status,
-                "message": message or central_registry.get(code, "Unknown error"),
-                "reason": reason,
-                "details": details,
-                "instance": _make_instance(),
+    return (
+        jsonify(
+            {
+                "errors": {
+                    "code": code,
+                    # machine-readable , maybe in future i will add something in here like url or something URL+code.lower()
+                    "type": code.lower(),
+                    "status": status,
+                    "message": message or central_registry.get(code, "Unknown error"),
+                    "reason": reason,
+                    "details": details,
+                    "instance": _make_instance(),
+                }
             }
-        }
-    ), status
+        ),
+        status,
+    )
+
+
+def bad_request(msg=None, details=None):
+    return error_response(
+        code="BAD_REQUEST",
+        status=400,
+        message=msg,
+        details=details,
+    )
 
 
 def handle_marshmallow_error(err, msg=None):
-    return error_response(
-        code="INVALID_INPUT",
-        status=400,
-        message=msg,
-        details=err.messages,
-    )
+    return bad_request(msg=msg or "Invalid input", details=err.messages)
 
 
 def not_found(msg=None):
@@ -62,3 +70,9 @@ def forbidden_access(msg=None):
 
 def internal_server_error(msg=None):
     return error_response(code="INTERNAL_ERROR", status=500, message=msg)
+
+
+def too_many_requests(msg=None, reason=None):
+    return error_response(
+        code="TOO_MANY_REQUEST", status=429, message=msg, reason=reason
+    )
