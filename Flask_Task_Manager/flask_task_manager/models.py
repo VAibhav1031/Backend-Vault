@@ -35,10 +35,11 @@ class Task(db.Model):
 
 class PasswordReset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    reset_token = db.Columnd(db.String(255), nullable=False)
-    expired_at = db.Column(db.Datetime, nullable=False)
+    reset_token = db.Column(db.String(255), nullable=False)
+    expired_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(
-        db.Datetime, default=datetime.utcnow(), nullable=False)
+        db.DateTime, default=datetime.datetime.now(datetime.UTC), nullable=False
+    )
     used = db.Column(db.Boolean, default=False)
     attempts = db.Column(db.Integer, default=0, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)

@@ -18,7 +18,7 @@ def create_app(config_class=DevConfig, verbose=False, quiet=False, log_to_file=T
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    logger = logging.getlogger(__name__)
+    logger = logging.getLogger(__name__)
     logger.info("Flask app created and logging initialized")
     db.init_app(
         app

@@ -2,7 +2,7 @@ import datetime
 from functools import wraps
 from flask import current_app
 import jwt
-from flask import request, jsonify
+from flask import request
 from .error_handler import unauthorized_error, too_many_requests, bad_request
 from flask_mail import Message
 from . import mail
@@ -12,7 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-secret_key = current_app.config["SECRET_KEY"]
+
 # -----------------
 # Generator Tokn
 # -----------------
@@ -25,7 +25,7 @@ def generate_token(user_id):
         "exp": datetime.datetime.now(datetime.timezone.utc)
         + datetime.timedelta(hours=1),
     }
-    return jwt.encode(payload, secret_key, algorithm="HS256")
+    return jwt.encode(payload, key=current_app.config["SECRET_KEY"], algorithm="HS256")
 
 
 def generate_token_otp(email, user_id, otp):
@@ -35,7 +35,7 @@ def generate_token_otp(email, user_id, otp):
         "otp": otp,
         "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=1),
     }
-    return jwt.encode(payload, secret_key, algorithm="HS256")
+    return jwt.encode(payload, key=current_app.config["SECRET_KEY"], algorithm="HS256")
 
 
 def generate_password_token(user_id, email):
@@ -45,7 +45,7 @@ def generate_password_token(user_id, email):
         "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=10),
     }
 
-    return jwt.encode(payload, secret_key, algorithm="HS256")
+    return jwt.encode(payload, key=current_app.config["SECRET_KEY"], algorithm="HS256")
 
 
 # ----------------
@@ -99,11 +99,11 @@ def decode_password_reset_token(token):
 # ----------------
 
 
-# Authentication: Bearer <your_jwt_here> the  payload must be this  when it is sent  by the recipients
+# Authorization: Bearer <your_jwt_here> the  payload must be this  when it is sent  by the recipients
 def token_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        auth_header = request.headers.get("Authentication")
+        auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             logger.warning("Token Error: Token is missing")
             return unauthorized_error(msg="token error", reason="token is missing")
@@ -124,13 +124,13 @@ def token_required(func):
 def otp_token_chk(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        auth_header = request.headers.get("Authentication")
+        auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             logger.warning("Token Error: Token is missing")
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
-        result = decode_password_reset_token(token)
+        result = decode_reset_token(token)
         if not isinstance(result, tuple):
             logger.warning(f"Token Error: {result}")
             return unauthorized_error(msg="token error", reason=result)
@@ -149,16 +149,14 @@ def reset_token_chk(func):
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
-        result = decode_reset_token(token)
+        result = decode_password_reset_token(token)
         if not isinstance(result, tuple):
             logger.warning(f"Token Error: {result}")
             return unauthorized_error(msg="token error", reason=result)
 
         user_id, email = result
 
-        reset_record = PasswordReset.query.filter_by(
-            user_id=user_id, email=email
-        ).first()
+        reset_record = PasswordReset.query.filter_by(user_id=user_id).first()
 
         if reset_record:
             if reset_record.used:
@@ -188,7 +186,7 @@ def reset_token_chk(func):
 
 
 def otp_generator():
-    return str(secrets.randbelow(10**6).zfill(6))
+    return str(secrets.randbelow(10**6)).zfill(6)
 
 
 def send_reset_email(user, otp):

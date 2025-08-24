@@ -67,18 +67,15 @@ def signup():
         hashed_password = bcrypt.generate_password_hash(data["password"]).decode(
             "utf-8"
         )
-        new_user = User(username=user_name, email=email,
-                        password_hash=hashed_password)
+        new_user = User(username=user_name, email=email, password_hash=hashed_password)
         db.session.add(new_user)
         db.session.commit()
-        logger.info(f"User Created:  username={
-                    user_name} user_id={new_user.id}")
+        logger.info(f"User Created:  username={user_name} user_id={new_user.id}")
         return jsonify({"message": f"{user_name} user created Sucessfully"}), 201
 
     except Exception as e:
         logger.error(
-            f"Error in creating user: username={
-                user_name}email={email} error={e}"
+            f"Error in creating user: username={user_name}email={email} error={e}"
         )
         return internal_server_error()
 
@@ -132,7 +129,7 @@ def forget_password():
     schema = ForgetPassword()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /forget_password requested ...")
+        logger.info("POST /forget-password requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -147,12 +144,13 @@ def forget_password():
                 send_reset_email(user, otp)
                 logger.info(f"Email is sent: addr = {data['email']}...")
 
+                # for testing purpose add the "otp":otp in it would be easier , only added otp
                 return jsonify({"otp-token": token})
         except Exception as e:
             logger.error(f"Token generation error:{e}")
-
-    logger.warning(f"User not found with  : email = {data['email']}")
-    not_found()
+    else:
+        logger.warning(f"User not found with  : email = {data['email']}")
+        not_found(msg="User not found")
 
 
 @main.route("/auth/verify-otp", methods=["POST"])
@@ -161,7 +159,7 @@ def verify_otp(token_otp, token_email):
     schema = VerifyOtp()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /verif-otp requested ...")
+        logger.info("POST /verify-otp requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -177,22 +175,34 @@ def verify_otp(token_otp, token_email):
     if data["otp"] == token_otp:
         logger.info("OTP Verified:  ")
         try:
-            reset_token = generate_password_token()
-            if reset_token:
-                logger.info("Reset Token generated")
-                return jsonify({"reset-token": reset_token})
+            user = User.query.filter_by(email=data["email"]).first()
+            if user:
+                reset_token = generate_password_token(user.id, data["email"])
+                if reset_token:
+                    logger.info("Reset Token generated")
+
+            else:
+                logger.warning(f"User not found with  : email = {data['email']}")
+                not_found(msg="User not found")
 
         except Exception as e:
             logger.error(f"Token generation error:{e}")
 
         forget_pass = PasswordReset(
             reset_token=reset_token,
-            expiry_at=datetime.utcnow() + datetime.timedelta(minutes=10),
+            expired_at=datetime.datetime.now(datetime.UTC)
+            + datetime.timedelta(minutes=10),
+            user_id=user.id,
         )
         db.session.add(forget_pass)
         db.session.commit()
+        return jsonify({"reset-token": reset_token})
 
-    logger.warning("OTP is invalid")
+    else:
+        logger.warning("OTP is invalid")
+        return unauthorized_error(
+            "Invalid OTP", reason="The provided OTP does not match"
+        )
 
 
 @main.route("/auth/reset-password", methods=["POST"])
@@ -206,14 +216,13 @@ def reset_password(user_id, email):
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
 
-    user = User.query.filter_by(user_id=user_id, email=email).first()
+    user = User.query.filter_by(id=user_id, email=email).first()
 
     if not user:
         logger.warning(
-            f"User not found: user_id={user_id}, email={
-                email}, ip={request.addr}"
+            f"User not found: user_id={user_id}, email={email}, ip={request.addr}"
         )
-        not_found()
+        not_found(msg="User not found ")
 
     pas_reset = (
         PasswordReset.query.filter_by(user_id=user.id)
@@ -248,7 +257,7 @@ def get_tasks_all(user_id):
 
     if not tasks:
         logger.warning(f"No Task's found with user_id={user_id}")
-        return not_found()
+        return not_found("No Task found")
 
     return jsonify(
         [
@@ -271,9 +280,8 @@ def get_task(user_id, task_id):
     logger.info("GET /tasks requested for get_task...")
 
     if not task:
-        logger.warning(f"No Task found with task_id = {
-                       task_id}, user_id={user_id}")
-        return not_found()
+        logger.warning(f"No Task found with task_id = {task_id}, user_id={user_id}")
+        return not_found("No Task found")
     return jsonify(
         {
             "id": task.id,
@@ -303,7 +311,7 @@ def update_task(user_id, task_id):
             f"No Task found with \
         task_id={task_id} , user_id={user_id}"
         )
-        return not_found()
+        return not_found("No Task found")
 
     try:
         task.title = data["title"]
@@ -371,6 +379,5 @@ def delete(user_id, task_id):
         return forbidden_access("Forbidden,Not authorized to access other Data")
     db.session.delete(task)
     db.session.commit()
-    logger.info(f"Deleted Task: task with task_id={
-                task_id}and user_id={user_id}")
+    logger.info(f"Deleted Task: task with task_id={task_id}and user_id={user_id}")
     return jsonify({"message": f"Task {id} deleted"})
