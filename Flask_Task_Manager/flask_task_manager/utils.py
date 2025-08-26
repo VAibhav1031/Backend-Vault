@@ -1,6 +1,6 @@
 import datetime
 from functools import wraps
-from flask import current_app
+from flask import current_app, render_template
 import jwt
 from flask import request
 from .error_handler import unauthorized_error, too_many_requests, bad_request
@@ -189,13 +189,24 @@ def otp_generator():
     return str(secrets.randbelow(10**6)).zfill(6)
 
 
+# def send_reset_email(user, otp):
+#     msg = Message(
+#         "Password reset Request", sender="noreply@demo.com", recipients=[user.email]
+#     )
+#     msg.body = f"""To reset your password, Here it is yout OTP:
+# {otp}
+#     Hurry up , you got 1 min / 60 sec to validate
+# If you did not make this request then simply ignore this email and no changes will be made
+# """
+#     mail.send(msg)
+
+
 def send_reset_email(user, otp):
     msg = Message(
         "Password reset Request", sender="noreply@demo.com", recipients=[user.email]
     )
-    msg.body = f"""To reset your password, Here it is yout OTP:
-{otp}
-    Hurry up , you got 1 min / 60 sec to validate
-If you did not make this request then simply ignore this email and no changes will be made
-"""
+    msg.body = render_template(
+        "reset_password.txt", username=user.username, OTP=otp)
+    msg.html = render_template(
+        "reset_password.html", username=user.username, OTP=otp)
     mail.send(msg)
