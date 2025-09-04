@@ -20,7 +20,6 @@ def client(app):
     return app.test_client()
 
 
-# User + Login fixture
 @pytest.fixture
 def token(client):
     client.post(
@@ -32,18 +31,21 @@ def token(client):
         },
     )
     payload = {"email": "Rangoo213@gmail.com", "password": "draco1234"}
+    # Test for the either email or username is required
+    # payload = {"password": "draco1234"}
+
     request = client.post("/api/auth/login", json=payload)
     assert request.status_code == 200
-    return request.get_json()["token"]
+    assert "token" in request.json
+    return request.json["token"]
 
 
 @pytest.fixture
 def auth_headers(token):
-    """Normal API JWT headers"""
     return {"Authorization": f"Bearer {token}"}
 
 
-# OTP + Reset flow fixtures
+#  OTP + Reset flow fixtures
 @pytest.fixture
 def verify_token(client):
     client.post(

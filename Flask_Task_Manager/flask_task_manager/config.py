@@ -5,6 +5,7 @@ load_dotenv()
 
 
 class Config:
+    USE_FAKE_MAIL = False
     SQLALCHEMY_DATABASE_URI = "sqlite:///task.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret")
@@ -16,6 +17,7 @@ class Config:
 
 
 class DevConfig(Config):
+    USE_FAKE_MAIL = True
     DEBUG = True
 
 

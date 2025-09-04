@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from flask_task_manager.config import DevConfig
+from flask_task_manager.config import DevConfig, ProdConfig
 from flask import Flask
 from flask_bcrypt import Bcrypt
 import logging.config
@@ -8,7 +8,6 @@ from flask_mail import Mail
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
-
 mail = Mail()
 
 
@@ -25,6 +24,16 @@ def create_app(config_class=DevConfig, verbose=False, quiet=False, log_to_file=T
     )  # this will create the instance to use the flask app outside the main run
     bcrypt.init_app(app)
     mail.init_app(app)
+
+    if app.config.get("USE_FAKE_MAIL", False):
+        from flask_task_manager.mail_service.fake_service import FakeMailService
+
+        app.mail_service = FakeMailService(app)
+
+    else:
+        from flask_task_manager.mail_service.real_service import RealMailService
+
+        app.mail_service = RealMailService(app)
 
     from flask_task_manager.routes import main
 

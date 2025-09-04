@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request, abort
 from flask_task_manager import db
 from .models import User, Task, PasswordReset
+from flask import current_app
 from flask_task_manager import bcrypt
 from .utils import (
     token_required,
     generate_token,
     generate_token_otp,
-    send_reset_email,
     otp_token_chk,
     otp_generator,
     reset_token_chk,
@@ -48,7 +48,6 @@ def signup():
         data = schema.load(request.get_json())
         logger.info("POST /signup request initiated...")
     except ValidationError as err:
-        # return {"erros": err.messages}, 400
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
 
@@ -96,10 +95,12 @@ def login():
     if data.get("email"):
         # /one()  we can use that since there will only user with that username
         user = User.query.filter_by(email=data["email"]).first()
+        if not user:
+            logger.warning("There is Error, unable to query")
         logger.info(f"User used email={data['email']} as the login")
     else:
-        logger.info(f"User used username={data['username']}")
         user = User.query.filter_by(username=data["username"]).first()
+        logger.info(f"User used username={data['username']}")
 
     if not user or not bcrypt.check_password_hash(user.password_hash, data["password"]):
         logger.warning(
@@ -141,15 +142,15 @@ def forget_password():
             token = generate_token_otp(data["email"], user.id, otp)
             if token:
                 logger.info("Forget-Password Token is generated")
-                send_reset_email(user, otp)
+                current_app.mail_service.send_mail(user, otp)
                 logger.info(f"Email is sent: addr = {data['email']}...")
 
                 # for testing purpose add the "otp":otp in it would be easier , only added otp
-                return jsonify({"otp-token": token})
+                return jsonify({"otp-token": token, "otp": otp})
         except Exception as e:
             logger.error(f"Token generation error:{e}")
     else:
-        logger.warning(f"User not found with  : email = {data['email']}")
+        logger.error(f"User not found with  : email = {data['email']}")
         not_found(msg="User not found")
 
 
@@ -173,7 +174,7 @@ def verify_otp(token_otp, token_email):
         return forbidden_access("Forbidden,Not authorized to access other Data")
 
     if data["otp"] == token_otp:
-        logger.info("OTP Verified:  ")
+        logger.info(f"OTP Verified: for user with {token_email} ")
         try:
             user = User.query.filter_by(email=data["email"]).first()
             if user:
@@ -182,7 +183,7 @@ def verify_otp(token_otp, token_email):
                     logger.info("Reset Token generated")
 
             else:
-                logger.warning(f"User not found with  : email = {data['email']}")
+                logger.error(f"User not found with  : email = {data['email']}")
                 not_found(msg="User not found")
 
         except Exception as e:
@@ -219,7 +220,7 @@ def reset_password(user_id, email):
     user = User.query.filter_by(id=user_id, email=email).first()
 
     if not user:
-        logger.warning(
+        logger.error(
             f"User not found: user_id={user_id}, email={email}, ip={request.addr}"
         )
         not_found(msg="User not found ")
@@ -256,7 +257,7 @@ def get_tasks_all(user_id):
     logger.info("GET /task requested for get_tasks_all ...")
 
     if not tasks:
-        logger.warning(f"No Task's found with user_id={user_id}")
+        logger.error(f"No Task's found with user_id={user_id}")
         return not_found("No Task found")
 
     return jsonify(
@@ -266,7 +267,6 @@ def get_tasks_all(user_id):
                 "title": t.title,
                 "description": t.description,
                 "completion": t.completion,
-                "user_id": t.user_id,
             }
             for t in tasks
         ]
@@ -280,7 +280,7 @@ def get_task(user_id, task_id):
     logger.info("GET /tasks requested for get_task...")
 
     if not task:
-        logger.warning(f"No Task found with task_id = {task_id}, user_id={user_id}")
+        logger.error(f"No Task found with task_id = {task_id}, user_id={user_id}")
         return not_found("No Task found")
     return jsonify(
         {
@@ -307,7 +307,7 @@ def update_task(user_id, task_id):
     task = Task.query.filter_by(id=task_id, user_id=user_id).first()
 
     if not task:
-        logger.warning(
+        logger.error(
             f"No Task found with \
         task_id={task_id} , user_id={user_id}"
         )
@@ -381,3 +381,21 @@ def delete(user_id, task_id):
     db.session.commit()
     logger.info(f"Deleted Task: task with task_id={task_id}and user_id={user_id}")
     return jsonify({"message": f"Task {id} deleted"})
+
+
+@main.route("/tasks", methods=["DELETE"])
+@token_required
+def delete_all(user_id):
+    tasks = Task.query.filter_by(user_id=user_id).all()
+    logger.info("DELETE /task requested...")
+
+    if not tasks:
+        logger.error(f"No Task found out with user_id = {user_id}")
+        return not_found("No Task Found")
+
+    for t in tasks:
+        db.session.delete(t)
+
+    db.session.commit()
+
+    return jsonify({"message": f"All task of user_id {user_id} deleted "}), 200

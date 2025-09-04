@@ -28,10 +28,6 @@ class ForgetPassword(Schema):
     email = fields.Email(required=True)
 
 
-# in future i would think of  one more way where user can give username/email for password reset , if he choose username
-# i will say it is sent to the v***@domain.com whatever it is
-
-
 class VerifyOtp(Schema):
     otp = fields.Str(required=True)
     email = fields.Email(required=True)
