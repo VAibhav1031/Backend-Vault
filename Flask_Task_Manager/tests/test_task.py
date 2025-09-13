@@ -2,11 +2,37 @@ from flask_task_manager.models import Task
 
 
 def test_get_all(client, auth_headers):
-    response = client.get("/api/tasks", headers=auth_headers)
-    assert response.status_code == 404
-    data = response.get_json()
+    request = client.get("/api/tasks", headers=auth_headers)
+    assert request.status_code == 404
+    data = request.get_json()
     assert data["errors"]["status"] == 404
     assert data["errors"]["message"] == "No Task found"
+
+
+def test_get_filter(client, auth_headers):
+    payload = {
+        "title": "new test",
+        "description": "for getting the task...",
+    }
+    payload1 = {
+        "title": "new test2",
+        "description": "for getting the task..:::)))",
+        "completion": True,
+    }
+
+    response = client.post("/api/tasks", json=payload, headers=auth_headers)
+    assert response.status_code == 201
+    response = client.post("/api/tasks", json=payload1, headers=auth_headers)
+    assert response.status_code == 201
+
+    task = Task.query.filter_by(title="new test2").first()
+    print(task.completion)
+
+    request = client.get(
+        "/api/tasks?completion=true&title=new%20test2", headers=auth_headers
+    )
+    assert request.status_code == 200
+    assert request.json[0]["title"] == "new test2"
 
 
 def test_get(client, app, auth_headers):

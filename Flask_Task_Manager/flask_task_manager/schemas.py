@@ -21,7 +21,7 @@ class LoginSchema(Schema):
 class AddUpdateTask(Schema):
     title = fields.Str(required=True)
     description = fields.Str(required=True)
-    completion = fields.Str(required=False)
+    completion = fields.Boolean(required=False)
 
 
 class ForgetPassword(Schema):

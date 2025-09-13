@@ -31,6 +31,7 @@ from flask_task_manager.schemas import (
 )
 import logging
 import datetime
+from sqlalchemy import and_
 
 main = Blueprint("main", __name__, url_prefix="/api/")
 
@@ -46,7 +47,7 @@ def signup():
     try:
         # it is already in the dict form then we use load not loads
         data = schema.load(request.get_json())
-        logger.info("POST /signup request initiated...")
+        logger.info("POST /api/auth/signup request initiated...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -87,7 +88,7 @@ def login():
     schema = LoginSchema()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /login requested ...")
+        logger.info("POST /api/auth/login requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -130,7 +131,7 @@ def forget_password():
     schema = ForgetPassword()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /forget-password requested ...")
+        logger.info("POST /api/auth/forget-password requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -160,7 +161,7 @@ def verify_otp(token_otp, token_email):
     schema = VerifyOtp()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /verify-otp requested ...")
+        logger.info("POST /api/auth/verify-otp requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -212,7 +213,7 @@ def reset_password(user_id, email):
     schema = ResetPassword()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /auth/reset_password requested ...")
+        logger.info("POST api/auth/reset_password requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -251,13 +252,40 @@ def reset_password(user_id, email):
 @main.route("/tasks", methods=["GET"])
 @token_required
 def get_tasks_all(user_id):
-    tasks = Task.query.filter_by(
-        user_id=user_id
-    ).all()  # will get all the ask of the user
-    logger.info("GET /task requested for get_tasks_all ...")
+    # will get all the ask of the user
+    # this  will give you the  sql query
+    query = Task.query.filter_by(user_id=user_id)
+    logger.info("GET /api/tasks requested for get_tasks_all ...")
 
+    ###################################
+    # Custom arguments for 'filter-ing'
+    # #################################
+    #
+    completion = request.args.get("completion")
+    title = request.args.get("title")
+    after = request.args.get("after")
+    before = request.args.get("before")
+
+    if completion is not None:
+        normalized = completion.lower()
+        if normalized in ("true", "1", "yes"):
+            query = query.filter(Task.completion == True)
+        elif normalized in ("false", "0", "no"):
+            query = query.filter(Task.completion == False)
+
+    # if title is not None:
+    #     query = query.filter(Task.title.ilike(f"%{title}%"))
+
+    if title:
+        query = query.filter(Task.title == title)
+    if after and before:
+        query = query.filter(and_(Task.created_at >= after, Task.created_at <= before))
+
+    tasks = query.all()
+    logger.info(f"before 404 check : {[t.title for t in tasks]}")
     if not tasks:
         logger.error(f"No Task's found with user_id={user_id}")
+        logger.info(f"Final query was : {query}")
         return not_found("No Task found")
 
     return jsonify(
@@ -267,6 +295,7 @@ def get_tasks_all(user_id):
                 "title": t.title,
                 "description": t.description,
                 "completion": t.completion,
+                "created_at": t.created_at,
             }
             for t in tasks
         ]
@@ -277,7 +306,7 @@ def get_tasks_all(user_id):
 @token_required
 def get_task(user_id, task_id):
     task = Task.query.filter_by(id=task_id, user_id=user_id).first()
-    logger.info("GET /tasks requested for get_task...")
+    logger.info("GET /api/tasks requested for get_task...")
 
     if not task:
         logger.error(f"No Task found with task_id = {task_id}, user_id={user_id}")
@@ -288,6 +317,7 @@ def get_task(user_id, task_id):
             "title": task.title,
             "description": task.description,
             "completion": task.completion,
+            "created_at": task.created_at,
         }
     )
 
@@ -332,7 +362,7 @@ def add_task(user_id):
     schema = AddUpdateTask()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST /tasks requested for add_task...")
+        logger.info("POST /api/tasks requested for add_task...")
 
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
@@ -350,14 +380,16 @@ def add_task(user_id):
         new_task = Task(
             title=data["title"],
             description=data.get("description", ""),
+            completion=data.get("completion", False),
             user_id=user_id,
         )
         db.session.add(new_task)
         db.session.commit()
 
         logger.info(
-            f"Task added: task_id={new_task.id}"
-            f"title={new_task.title}, user_id={user_id}"
+            f"Task added: task_id={new_task.id}, title={new_task.title}, user_id={
+                user_id
+            }"
         )
 
         return jsonify({"message": "Task added", "task_id": new_task.id}), 201
