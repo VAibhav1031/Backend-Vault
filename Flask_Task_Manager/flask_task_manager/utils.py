@@ -1,4 +1,5 @@
 import datetime
+import base64
 from functools import wraps
 from flask import current_app
 import jwt
@@ -178,10 +179,32 @@ def reset_token_chk(func):
     return wrapper
 
 
-# --------------
-# OTP helper
-# --------------
+# ------------------------
+# cursor encoder && decoder
+# ------------------------
+
+
+# encrypt the id (currently using base64 encoding )
+def cursor_encoder(task_id):
+    purity = str(task_id).encode()
+    encoded_cursor = base64.b64encode(purity)
+    return encoded_cursor
+
+
+def cursor_decoder(cursor):
+    decoding = base64.b64decode(cursor)
+    decoded_cursor = decoding.decode()
+
+    return decoded_cursor
+
+    # --------------
+    # OTP helper
+    # --------------
 
 
 def otp_generator():
+    # zfill is  the padding , which make the result into the required size
+    # cause sometime  for  10**6  you get value 68706  which is not even equal to required size
+    # so  zfill add padding to  068706  -->  which is good
+
     return str(secrets.randbelow(10**6)).zfill(6)

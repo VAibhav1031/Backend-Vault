@@ -11,6 +11,8 @@ from .utils import (
     otp_generator,
     reset_token_chk,
     generate_password_token,
+    cursor_encoder,
+    cursor_decoder,
 )
 from .error_handler import (
     handle_marshmallow_error,
@@ -32,6 +34,9 @@ from flask_task_manager.schemas import (
 import logging
 import datetime
 from sqlalchemy import and_
+
+DEFAULT_LIMIT = 10
+MAX_LIMIT = 100
 
 main = Blueprint("main", __name__, url_prefix="/api/")
 
@@ -254,52 +259,103 @@ def reset_password(user_id, email):
 def get_tasks_all(user_id):
     # will get all the ask of the user
     # this  will give you the  sql query
-    query = Task.query.filter_by(user_id=user_id)
-    logger.info("GET /api/tasks requested for get_tasks_all ...")
+    try:
+        query = Task.query.filter_by(user_id=user_id).order_by(Task.id.asc())
+        logger.info("GET /api/tasks requested for get_tasks_all ...")
 
-    ###################################
-    # Custom arguments for 'filter-ing'
-    # #################################
-    #
-    completion = request.args.get("completion")
-    title = request.args.get("title")
-    after = request.args.get("after")
-    before = request.args.get("before")
+        ###################################
+        # Custom arguments for 'filter-ing'
+        # #################################
 
-    if completion is not None:
-        normalized = completion.lower()
-        if normalized in ("true", "1", "yes"):
-            query = query.filter(Task.completion == True)
-        elif normalized in ("false", "0", "no"):
-            query = query.filter(Task.completion == False)
+        completion = request.args.get("completion")
+        title = request.args.get("title")
+        after = request.args.get("after")
+        before = request.args.get("before")
 
-    # if title is not None:
-    #     query = query.filter(Task.title.ilike(f"%{title}%"))
+        if completion is not None:
+            normalized = completion.lower()
+            if normalized in ("true", "1", "yes"):
+                query = query.filter(Task.completion == True)
+            elif normalized in ("false", "0", "no"):
+                query = query.filter(Task.completion == False)
 
-    if title:
-        query = query.filter(Task.title == title)
-    if after and before:
-        query = query.filter(and_(Task.created_at >= after, Task.created_at <= before))
+        # postgres based
+        # if title is not None:
+        #     query = query.filter(Task.title.ilike(f"%{title}%"))
 
-    tasks = query.all()
-    logger.info(f"before 404 check : {[t.title for t in tasks]}")
-    if not tasks:
-        logger.error(f"No Task's found with user_id={user_id}")
-        logger.info(f"Final query was : {query}")
-        return not_found("No Task found")
+        if title:
+            query = query.filter(Task.title == title)
+        if after and before:
+            query = query.filter(
+                and_(Task.created_at >= after, Task.created_at <= before)
+            )
+        #####################################################################
 
-    return jsonify(
-        [
-            {
-                "id": t.id,
-                "title": t.title,
-                "description": t.description,
-                "completion": t.completion,
-                "created_at": t.created_at,
-            }
-            for t in tasks
-        ]
-    )
+        #####################################
+        # Cursor Pagination control area ....
+        #####################################
+        try:
+            cursor = request.args.get("cursor")
+            limit = request.args.get("limit", DEFAULT_LIMIT)
+            page_size = min(limit, MAX_LIMIT)
+
+            if cursor:
+                cursor_decoded_id = cursor_decoder(cursor)
+                query = query.filter(Task.id > cursor_decoded_id)
+
+            # +1 for has_more  check
+            results = query.limit(page_size + 1).all()
+
+            # debugging logger
+            logger.info(f"results  of he tasks : {results}")
+
+            if not results:
+                logger.error(f"No Task's found with user_id={user_id}")
+                logger.info(f"Final query was : {query}")
+                return not_found("No Task found")
+
+            has_more = len(results) > page_size
+            tasks = results[:page_size]
+
+            next_cursor = None
+            if has_more and len(tasks) > 0:
+                next_id = tasks[-1].id
+                next_cursor = cursor_encoder(next_id)
+
+            # we have the  few things to be remeber
+
+            # tasks = query.  # default for every
+            # # Debugging logger
+            # logger.info(f"before 404 check : {[t.title for t in tasks]}")
+
+            return jsonify(
+                {
+                    "data": [
+                        {
+                            "id": t.id,
+                            "title": t.title,
+                            "description": t.description,
+                            "completion": t.completion,
+                            "created_at": t.created_at,
+                        }
+                        for t in tasks
+                    ],
+                    "pagination": {
+                        "next_cursor": next_cursor,
+                        "has_more": has_more,
+                        "limit": page_size,
+                        "total_returned": len(tasks),
+                    },
+                    "meta": {"version": "1.0"},
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"No cursor : {e}")
+
+    except Exception as e:
+        logger.error(f"Error ocurred in the /tasks route : {e}")
+        return internal_server_error()
 
 
 @main.route("/tasks/<int:task_id>", methods=["GET"])
