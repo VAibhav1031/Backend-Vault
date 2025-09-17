@@ -1,9 +1,9 @@
 from flask import Blueprint, jsonify, request
 from flask_task_manager import db
-from .models import User, PasswordReset
+from flask_task_manager.models import User, PasswordReset
 from flask import current_app
 from flask_task_manager import bcrypt
-from .utils import (
+from flask_task_manager.utils import (
     generate_token,
     generate_token_otp,
     otp_token_chk,
@@ -60,15 +60,18 @@ def signup():
         hashed_password = bcrypt.generate_password_hash(data["password"]).decode(
             "utf-8"
         )
-        new_user = User(username=user_name, email=email, password_hash=hashed_password)
+        new_user = User(username=user_name, email=email,
+                        password_hash=hashed_password)
         db.session.add(new_user)
         db.session.commit()
-        logger.info(f"User Created:  username={user_name} user_id={new_user.id}")
+        logger.info(f"User Created:  username={
+                    user_name} user_id={new_user.id}")
         return jsonify({"message": f"{user_name} user created Sucessfully"}), 201
 
     except Exception as e:
         logger.error(
-            f"Error in creating user: username={user_name}email={email} error={e}"
+            f"Error in creating user: username={
+                user_name}email={email} error={e}"
         )
         return internal_server_error()
 
