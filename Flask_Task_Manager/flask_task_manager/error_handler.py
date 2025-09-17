@@ -34,6 +34,9 @@ def error_response(code, status, message=None, reason=None, details=None):
     )
 
 
+# bad request means something you have done which is not intended to happen
+
+
 def bad_request(msg=None, details=None):
     return error_response(
         code="BAD_REQUEST",
