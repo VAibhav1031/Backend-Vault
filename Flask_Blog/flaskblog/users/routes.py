@@ -80,7 +80,8 @@ def account():
     elif request.method == "GET":  # will  retrieve the values and populate the sections
         form.username.data = current_user.username
         form.email.data = current_user.email
-    image_file = url_for("static", filename="profile_pics/" + current_user.image_file)
+    image_file = url_for(
+        "static", filename="profile_pics/" + current_user.image_file)
     return render_template(
         "account.html", title="Account", image_file=image_file, form=form
     )
@@ -88,6 +89,7 @@ def account():
 
 @users.route("/user/<string:username>")
 def user_posts(username):
+    # quey parameter being used here
     page = request.args.get("page", 1, type=int)
     user = User.query.filter_by(username=username).first_or_404()
     posts = (
