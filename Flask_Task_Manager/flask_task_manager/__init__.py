@@ -40,8 +40,10 @@ def create_app(config_class=DevConfig, verbose=False, quiet=False, log_to_file=T
 
         app.mail_service = RealMailService(app)
 
-    from flask_task_manager.routes import main
+    from flask_task_manager.auth.routes import auth
+    from flask_task_manager.tasks.routes import tasks
 
-    app.register_blueprint(main)
+    app.register_blueprint(auth)
+    app.register_blueprint(tasks)
 
     return app
