@@ -10,7 +10,7 @@ from flask_task_manager.utils import (
     otp_generator,
     generate_password_token,
 )
-from .error_handler import (
+from flask_task_manager.error_handler import (
     handle_marshmallow_error,
     not_found,
     user_already_exists,

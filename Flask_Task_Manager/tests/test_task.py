@@ -32,7 +32,7 @@ def test_get_filter(client, auth_headers):
         "/api/tasks?completion=true&title=new%20test2", headers=auth_headers
     )
     assert request.status_code == 200
-    assert request.json[0]["title"] == "new test2"
+    assert request.json["data"][0]["title"] == "new test2"
 
 
 def test_get(client, app, auth_headers):
