@@ -11,8 +11,12 @@ dependencies = [
     "flask>=3.0",
     "flask-sqlalchemy>=3.1",
     "flask-jwt-extended>=4.6",
-    # "psycopg2-binary>=2.9",     # PostgreSQL driver (if using Postgres)
+    "psycopg2-binary>=2.9", # PostgreSQL driver (if using Postgres)
     "python-dotenv>=1.0",
+    "flask-bcrypt>=1.0.1",
+    "flask-mail>=0.10.0",
+    "flask-migrate>=4.1.0",
+    "marshmallow>=4.0.1",
 ]
 
 [project.optional-dependencies]

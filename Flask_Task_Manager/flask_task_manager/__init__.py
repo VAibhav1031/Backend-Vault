@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from flask_task_manager.config import DevConfig, ProdConfig
+from flask_task_manager.config import get_config
 from flask import Flask
 from flask_bcrypt import Bcrypt
 import logging.config
@@ -13,12 +13,12 @@ mail = Mail()
 migrate = Migrate()
 
 
-def create_app(config_class=DevConfig, verbose=False, quiet=False, log_to_file=True):
+def create_app(config_class=None, verbose=False, quiet=False, log_to_file=True):
     setup_logging(verbose=verbose, quiet=quiet, log_to_file=log_to_file)
 
     app = Flask(__name__)
     # here we are creating dynamic attribute
-    app.config.from_object(config_class)
+    app.config.from_object(get_config())
 
     logger = logging.getLogger(__name__)
     logger.info("Flask app created and logging initialized")
