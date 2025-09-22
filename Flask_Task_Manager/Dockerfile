@@ -4,12 +4,21 @@ WORKDIR /task_app
 
 COPY . .
 
-RUN pip3 install uv && uv sync
+RUN apt-get update && apt-get install -y postgresql-client && \
+    pip3 install uv && \
+    uv sync \
+    && rm -rf /var/lib/apt/lists/*
 
 
-ENTRYPOINT ["uv","run"]
+RUN chmod +x docker-entrypoint.sh 
 
-CMD ["python","run.py"]
+EXPOSE 5555
 
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
+# ENTRYPOINT ["uv","run"]
+#
+# CMD ["python","run.py"]
+#
 
 

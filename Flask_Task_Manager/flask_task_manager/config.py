@@ -23,19 +23,19 @@ class DevConfig(Config):
     # DB_configs (taken from env file)
     ###################################
 
-    DEV_DB_USER = os.environ.get("DB_USER")
-    DEV_DB_PASSWORD = os.environ.get("DB_PASSWORD")
-    DEV_DB_HOST = os.environ.get("DB_HOST")
-    DEV_DB_PORT = os.environ.get("DB_PORT")
-    DEV_DB_NAME = os.environ.get("DB_NAME")
+    DB_USER = os.environ.get("DEV_DB_USER")
+    DB_PASSWORD = os.environ.get("DEV_DB_PASSWORD")
+    DB_HOST = os.environ.get("DEV_DB_HOST")
+    DB_PORT = os.environ.get("DEV_DB_PORT")
+    DB_NAME = os.environ.get("DEV_DB_NAME")
 
     ###################################
     # SQLAlchemy config
     ##################################
 
-    SQLALCHEMY_DATABASE_URI = f"postgresql+psycopg2://{DEV_DB_USER}:{DEV_DB_PASSWORD}@{
-        DEV_DB_HOST
-    }:{DEV_DB_PORT}/{DEV_DB_NAME}"
+    SQLALCHEMY_DATABASE_URI = (
+        f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret")

@@ -43,7 +43,8 @@ def filter_manager(completion, title, after_str, before_str, query):
 
     except Exception as e:
         logger.error(
-            f"Invalid datetime format {e}, Use ISO 8601 UTC , eg 2025-09-11T18:30:00Z"
+            f"Invalid datetime format {
+                e}, Use ISO 8601 UTC , eg 2025-09-11T18:30:00Z"
         )
         return bad_request(
             msg="Invalid Datetime",
@@ -66,7 +67,8 @@ def filter_manager(completion, title, after_str, before_str, query):
         query = query.filter(Task.title == title)
 
     if after and before:
-        query = query.filter(and_(Task.created_at >= after, Task.created_at <= before))
+        query = query.filter(
+            and_(Task.created_at >= after, Task.created_at <= before))
     elif after:
         query = query.filter(Task.created_at >= after)
 
@@ -96,7 +98,8 @@ def get_tasks_all(user_id):
             )
 
         except Exception as e:
-            logger.error(f"No query is returned from  the filter_manager function {e}")
+            logger.error(
+                f"No query is returned from  the filter_manager function {e}")
             return internal_server_error(msg=f"{e}")
 
         #####################################
@@ -165,6 +168,7 @@ def get_tasks_all(user_id):
 
         except Exception as e:
             logger.error(f"No cursor : {e}")
+            return internal_server_error()
 
     except Exception as e:
         logger.error(f"Error ocurred in the /tasks route : {e}")
@@ -178,7 +182,8 @@ def get_task(user_id, task_id):
     logger.info("GET /api/tasks requested for get_task...")
 
     if not task:
-        logger.error(f"No Task found with task_id = {task_id}, user_id={user_id}")
+        logger.error(f"No Task found with task_id = {
+                     task_id}, user_id={user_id}")
         return not_found("No Task found")
     return jsonify(
         {
@@ -280,7 +285,8 @@ def delete(user_id, task_id):
         return forbidden_access("Forbidden,Not authorized to access other Data")
     db.session.delete(task)
     db.session.commit()
-    logger.info(f"Deleted Task: task with task_id={task_id}and user_id={user_id}")
+    logger.info(f"Deleted Task: task with task_id={
+                task_id}and user_id={user_id}")
     return jsonify({"message": f"Task {id} deleted"})
 
 

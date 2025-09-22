@@ -1,0 +1,76 @@
+
+
+services:
+  # This 'app' service represents the Flask application that we are going to run
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # The ports mapping, that your application needed when you start
+    ports:
+      - "5555:5555"
+    
+    # All your required elements are in the .env so you load that
+    env_file:
+      - .env
+    # Pass essential environment variables to the container.
+    # We now pass the DEV_DB_* variables directly, matching the config.py.
+    environment:
+      # Use the service name with a hyphen as the hostname
+      DEV_DB_HOST: dev-db
+      # Correctly map environment variables to match your config.py file
+      DEV_DB_USER: ${DEV_DB_USER}
+      DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
+      DEV_DB_NAME: ${DEV_DB_NAME}
+      DEV_DB_PORT: 5432
+    
+    # The application service depends on the database service and waits for it to be "healthy"
+    depends_on:
+      dev-db:
+        condition: service_healthy
+    
+    # It is a little bit interesting section, like whenever you make changes in the code in the file, and compose watch catches that it rebuilds the image
+    # Sometimes it reloads the container
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+          target: /task_app
+          ignore:
+            - .venv/
+            - .git/
+            - .egg-info/
+            - __pycache__
+
+    # This command runs the database migrations first, then starts the application.
+    # command: sh -c "flask --app run.py db upgrade && uv run python run.py"
+
+    entrypoint: ./docker-entrypoint.sh
+  # The second service running along the first app service
+  dev-db:
+    # We are using this image
+    image: postgres:17-alpine
+    
+    # We have given this to the db
+    environment:
+      POSTGRES_USER: ${DEV_DB_USER}
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD}
+      POSTGRES_DB: ${DEV_DB_NAME}
+    
+    # All data will persist even if you stop the container.
+    volumes:
+      - task_app_data:/var/lib/postgresql/data
+    
+    # This health check tells Docker Compose to wait until the database is ready
+    healthcheck:
+
+      test: ["CMD-SHELL", "pg_isready -U ${DEV_DB_USER}  -d ${DEV_DB_NAME} "]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  task_app_data:
+
