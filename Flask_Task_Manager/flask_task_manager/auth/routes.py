@@ -118,6 +118,7 @@ def login():
 
     except Exception as e:
         logger.error(f"Token generation error:{e}")
+        return internal_server_error(msg="Token Error generation..")
 
 
 @auth.route("/auth/forget-password", methods=["POST"])

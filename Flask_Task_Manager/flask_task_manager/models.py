@@ -1,4 +1,5 @@
 from flask_task_manager import db
+from datetime import datetime, timezone
 
 
 class User(db.Model):
@@ -33,7 +34,9 @@ class Task(db.Model):
     description = db.Column(db.Text)
     completion = db.Column(db.Boolean, default=False)
     created_at = db.Column(
-        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+        nullable=False,
     )
     updated_at = db.Column(
         db.DateTime, default=db.func.now(), onupdate=db.func.now(), nullable=False
@@ -47,7 +50,11 @@ class PasswordReset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reset_token = db.Column(db.String(255), nullable=False)
     expired_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+        nullable=False,
+    )
     used = db.Column(db.Boolean, default=False)
     attempts = db.Column(db.Integer, default=0, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)

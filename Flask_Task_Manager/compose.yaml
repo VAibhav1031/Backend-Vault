@@ -6,7 +6,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    
+    # volumes:
+    #   - .:task_app/
+    #
+
     # The ports mapping, that your application needed when you start
     ports:
       - "5555:5555"

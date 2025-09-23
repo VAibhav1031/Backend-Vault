@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request, abort
 from flask_task_manager import db
 from flask_task_manager.models import Task
-
+from datetime import timezone
+from dateutil import parser
 from flask_task_manager.utils import (
     token_required,
     cursor_encoder,
@@ -30,6 +31,11 @@ tasks = Blueprint("tasks", __name__, url_prefix="/api/")
 logger = logging.getLogger(__name__)
 
 
+def parse_query_date(value: str):
+    dt = parser.isoparser(value)
+    return dt.astimezone(timezone.utc)
+
+
 def filter_manager(completion, title, after_str, before_str, query):
     after, before = None, None
     try:
@@ -37,9 +43,9 @@ def filter_manager(completion, title, after_str, before_str, query):
             # It is  still object which is return but that object has peice of info that will use when  compare in query
             # Z is stand for the 'ZULU' which is bit common for the military and all and normal use also , python library doesnt have any way
             # to handle that or something so we replace that thing with notrmal one s
-            after = datetime.fromisoformat(after_str.replace("Z", "+00:00"))
+            after = parse_query_date(after_str)
         if before_str:
-            before = datetime.fromisoformat(before_str.replace("Z", "+00:00"))
+            before = parse_query_date(before_str)
 
     except Exception as e:
         logger.error(
@@ -152,7 +158,9 @@ def get_tasks_all(user_id):
                             "title": t.title,
                             "description": t.description,
                             "completion": t.completion,
-                            "created_at": t.created_at,
+                            "created_at": t.created_at.astimezone(
+                                timezone.utc
+                            ).strftime("%Y-%m-%dT%H:%M:%SZ"),
                         }
                         for t in tasks
                     ],
@@ -191,7 +199,9 @@ def get_task(user_id, task_id):
             "title": task.title,
             "description": task.description,
             "completion": task.completion,
-            "created_at": task.created_at,
+            "created_at": task.created_at.astimezone(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
         }
     )
 

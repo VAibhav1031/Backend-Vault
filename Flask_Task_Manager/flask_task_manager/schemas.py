@@ -23,6 +23,11 @@ class AddUpdateTask(Schema):
     description = fields.Str(required=True)
     completion = fields.Boolean(required=False)
 
+    @validates_schema
+    def validate_identifier(self, data, **kwargs):
+        if data.get("title") == "" and data.get("description") == "":
+            raise ValidationError("title and  description cant be empty")
+
 
 class ForgetPassword(Schema):
     email = fields.Email(required=True)
