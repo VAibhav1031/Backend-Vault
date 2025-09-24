@@ -11,16 +11,16 @@ done
 
 echo "Database is ready!!"
 
-if ! [ -d ./migrations/ ]; then
+if ! [ -d task_app/migrations/ ]; then
   echo "Path doesn't exist: migrations."
   echo "Creating...."
-  flask --app run.py db init
-  flask --app run.py db migrate -m "initial migration"
+  mkdir -p /task_app/migrations/
 fi
 echo "Done."
 
 if [ -z "$(ls -A migrations/versions 2>/dev/null)" ]; then
   echo "Initial migration...."
+  flask --app run.py db init
   flask --app run.py db migrate -m "initial migration"
 fi
 

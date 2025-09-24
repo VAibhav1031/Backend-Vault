@@ -1,13 +1,11 @@
-
-
 services:
   # This 'app' service represents the Flask application that we are going to run
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    # volumes:
-    #   - .:task_app/
+    volumes:
+       - ./migrations:/task_app/migrations
     #
 
     # The ports mapping, that your application needed when you start

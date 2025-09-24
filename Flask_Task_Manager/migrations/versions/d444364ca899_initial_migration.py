@@ -1,8 +1,8 @@
-""" migration
+"""initial migration
 
-Revision ID: 3d62e857a7c2
-Revises: c583938712af
-Create Date: 2025-09-13 17:17:14.697193
+Revision ID: d444364ca899
+Revises: 
+Create Date: 2025-09-24 19:22:59.688204
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3d62e857a7c2'
-down_revision = 'c583938712af'
+revision = 'd444364ca899'
+down_revision = None
 branch_labels = None
 depends_on = None
 
@@ -31,7 +31,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reset_token', sa.String(length=255), nullable=False),
     sa.Column('expired_at', sa.DateTime(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('used', sa.Boolean(), nullable=True),
     sa.Column('attempts', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -43,7 +43,7 @@ def upgrade():
     sa.Column('title', sa.String(length=60), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('completion', sa.Boolean(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
