@@ -18,9 +18,21 @@ class LoginSchema(Schema):
             raise ValidationError("Either email or username is required")
 
 
-class AddUpdateTask(Schema):
+# i think  i neeed to separate this , USer must have some flexibility here , for updating any field  int he  task
+class AddTask(Schema):
     title = fields.Str(required=True)
     description = fields.Str(required=True)
+    completion = fields.Boolean(required=False)
+
+    @validates_schema
+    def validate_identifier(self, data, **kwargs):
+        if data.get("title") == "" and data.get("description") == "":
+            raise ValidationError("title and  description cant be empty")
+
+
+class UpdateTask(Schema):
+    title = fields.Str(required=False)
+    description = fields.Str(required=False)
     completion = fields.Boolean(required=False)
 
     @validates_schema

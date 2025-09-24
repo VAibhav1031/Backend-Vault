@@ -35,7 +35,7 @@ class Task(db.Model):
     completion = db.Column(db.Boolean, default=False)
     created_at = db.Column(
         db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc).isoformat(),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     updated_at = db.Column(
@@ -52,7 +52,7 @@ class PasswordReset(db.Model):
     expired_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(
         db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc).isoformat(),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     used = db.Column(db.Boolean, default=False)

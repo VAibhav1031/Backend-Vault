@@ -16,11 +16,12 @@ from flask_task_manager.error_handler import (
     bad_request,
 )
 from flask_task_manager.schemas import (
-    AddUpdateTask,
+    AddTask,
+    UpdateTask,
     ValidationError,
 )
 import logging
-import datetime
+
 from sqlalchemy import and_
 
 DEFAULT_LIMIT = 10
@@ -32,7 +33,8 @@ logger = logging.getLogger(__name__)
 
 
 def parse_query_date(value: str):
-    dt = parser.isoparser(value)
+    dt = parser.isoparse(value)
+    logger.info(f"HEre is the parsed dt letss : {dt}")
     return dt.astimezone(timezone.utc)
 
 
@@ -120,6 +122,7 @@ def get_tasks_all(user_id):
                 cursor_decoded_id = cursor_decoder(cursor)
                 query = query.filter(Task.id > cursor_decoded_id)
 
+            logger.info(f"Before limiting : {query}")
             # +1 for has_more  check
             results = query.limit(page_size + 1).all()
 
@@ -158,6 +161,7 @@ def get_tasks_all(user_id):
                             "title": t.title,
                             "description": t.description,
                             "completion": t.completion,
+                            "created_at_normal": t.created_at,
                             "created_at": t.created_at.astimezone(
                                 timezone.utc
                             ).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -206,13 +210,13 @@ def get_task(user_id, task_id):
     )
 
 
-@tasks.route("/task/<int:task_id>", methods=["PUT"])
+@tasks.route("/tasks/<int:task_id>", methods=["PUT"])
 @token_required
 def update_task(user_id, task_id):
-    schema = AddUpdateTask()
+    schema = UpdateTask()
     try:
         data = schema.load(request.get_json())
-        logger.info("PUT /task/task_id requested for update_task")
+        logger.info("PUT api/task/task_id requested for update_task")
 
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
@@ -243,7 +247,7 @@ def update_task(user_id, task_id):
 @tasks.route("/tasks", methods=["POST"])
 @token_required
 def add_task(user_id):
-    schema = AddUpdateTask()
+    schema = AddTask()
     try:
         data = schema.load(request.get_json())
         logger.info("POST /api/tasks requested for add_task...")
