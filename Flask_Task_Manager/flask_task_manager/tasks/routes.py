@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, abort
 from flask_task_manager import db
 from flask_task_manager.models import Task
-from datetime import timezone
+from datetime import timezone, datetime
 from dateutil import parser
 from flask_task_manager.utils import (
     token_required,
@@ -32,13 +32,39 @@ tasks = Blueprint("tasks", __name__, url_prefix="/api/")
 logger = logging.getLogger(__name__)
 
 
-def parse_query_date(value: str):
-    dt = parser.isoparse(value)
+def parse_query_date(value: str, end_of_day: bool = False):
+    dt = None
+    try:
+        if len(value) == 10:  # DD-MM-YYYY
+            dt = datetime.strptime(value, "%Y-%m-%d")
+            dt = dt.replace(
+                hour=24, minute=59, second=59 if end_of_day else 0, tzinfo=timezone.utc
+            )
+        elif len(value) == 16:  # YYYY-MM-DDTHH:MM:
+            dt = datetime.strptime(value, "%Y-%m-%d")
+            dt = dt.replace(second=59 if end_of_day else 0,
+                            tzinfo=timezone.utc)
+
+        else:
+            # whaat if  frontend guy said lets give the whole date time , but if he missed the timezone stamp
+            dt = parser.isoparse(value)
+
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+
+            else:
+                dt = dt.astimezone(timezone.utc)
+
+    except Exception as e:
+        logger.error(
+            f"Error related to the Parsing of date from the client :{e}")
+        return internal_server_error("Parsing date Query ")
+
     logger.info(f"HEre is the parsed dt letss : {dt}")
-    return dt.astimezone(timezone.utc)
+    return dt
 
 
-def filter_manager(completion, title, after_str, before_str, query):
+def filter_manager(completion, title: str, after_str: str, before_str: str, query):
     after, before = None, None
     try:
         if after_str:
@@ -88,7 +114,7 @@ def filter_manager(completion, title, after_str, before_str, query):
 
 @tasks.route("/tasks", methods=["GET"])
 @token_required
-def get_tasks_all(user_id):
+def get_tasks_all(user_id: int):
     try:
         query = Task.query.filter_by(user_id=user_id).order_by(Task.id.asc())
         logger.info("GET /api/tasks requested for get_tasks_all ...")
@@ -189,7 +215,7 @@ def get_tasks_all(user_id):
 
 @tasks.route("/tasks/<int:task_id>", methods=["GET"])
 @token_required
-def get_task(user_id, task_id):
+def get_task(user_id: int, task_id: int):
     task = Task.query.filter_by(id=task_id, user_id=user_id).first()
     logger.info("GET /api/tasks requested for get_task...")
 
@@ -212,7 +238,7 @@ def get_task(user_id, task_id):
 
 @tasks.route("/tasks/<int:task_id>", methods=["PUT"])
 @token_required
-def update_task(user_id, task_id):
+def update_task(user_id: int, task_id: int):
     schema = UpdateTask()
     try:
         data = schema.load(request.get_json())
@@ -288,7 +314,7 @@ def add_task(user_id):
 
 @tasks.route("/tasks/<int:task_id>", methods=["DELETE"])
 @token_required
-def delete(user_id, task_id):
+def delete(user_id: int, task_id: int):
     task = db.session.get(Task, task_id) or abort(404)
     if task.user_id != user_id:
         logger.warning(
@@ -306,7 +332,7 @@ def delete(user_id, task_id):
 
 @tasks.route("/tasks", methods=["DELETE"])
 @token_required
-def delete_all(user_id):
+def delete_all(user_id: int):
     tasks = Task.query.filter_by(user_id=user_id).all()
     logger.info("DELETE /task requested...")
 
