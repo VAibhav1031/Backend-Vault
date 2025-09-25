@@ -144,9 +144,10 @@ def forget_password():
                 logger.info(f"Email is sent: addr = {data['email']}...")
 
                 # for testing purpose add the "otp":otp in it would be easier , only added otp
-                return jsonify({"otp-token": token, "otp": otp})
+                return jsonify({"otp-token": token})
         except Exception as e:
             logger.error(f"Token generation error:{e}")
+            return internal_server_error()
     else:
         logger.error(f"User not found with  : email = {data['email']}")
         not_found(msg="User not found")
@@ -186,6 +187,7 @@ def verify_otp(token_otp, token_email):
 
         except Exception as e:
             logger.error(f"Token generation error:{e}")
+            return internal_server_error()
 
         forget_pass = PasswordReset(
             reset_token=reset_token,
