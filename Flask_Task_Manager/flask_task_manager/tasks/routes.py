@@ -148,7 +148,6 @@ def get_tasks_all(user_id: int):
                 cursor_decoded_id = cursor_decoder(cursor)
                 query = query.filter(Task.id > cursor_decoded_id)
 
-            logger.info(f"Before limiting : {query}")
             # +1 for has_more  check
             results = query.limit(page_size + 1).all()
 
@@ -249,7 +248,7 @@ def update_task(user_id: int, task_id: int):
         return handle_marshmallow_error(err)
 
     task = Task.query.filter_by(id=task_id, user_id=user_id).first()
-
+    logger.info(f"here it is {task}")
     if not task:
         logger.error(
             f"No Task found with \
@@ -258,9 +257,16 @@ def update_task(user_id: int, task_id: int):
         return not_found("No Task found")
 
     try:
-        task.title = data["title"]
-        task.description = data["description"]
+        # what if they dont sent anything and  update db with none value  ,
+        # check  then only update even you have validation int he schemas section
+        if "title" in data:
+            task.title = data["title"]
+        if "description" in data:
+            task.description = data["description"]
+        if "completion" in data:
+            task.completion = data["completion"]
         db.session.commit()
+        return jsonify({"message": "Task Updated Sucessfully"}), 200
 
     except Exception as e:
         logger.error(
@@ -293,7 +299,7 @@ def add_task(user_id):
     try:
         new_task = Task(
             title=data["title"],
-            description=data.get("description", ""),
+            description=data.get("description"),
             completion=data.get("completion", False),
             user_id=user_id,
         )
