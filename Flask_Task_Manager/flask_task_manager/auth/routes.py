@@ -9,6 +9,7 @@ from flask_task_manager.utils import (
     otp_token_chk,
     otp_generator,
     generate_password_token,
+    reset_token_chk,
 )
 from flask_task_manager.error_handler import (
     handle_marshmallow_error,
@@ -23,6 +24,7 @@ from flask_task_manager.schemas import (
     LoginSchema,
     ValidationError,
     ForgetPassword,
+    ResetPassword,
     VerifyOtp,
 )
 import logging
@@ -204,3 +206,46 @@ def verify_otp(token_otp, token_email):
         return unauthorized_error(
             "Invalid OTP", reason="The provided OTP does not match"
         )
+
+
+@auth.route("/auth/reset-password", methods=["POST"])
+@reset_token_chk
+def reset_password(user_id, email):
+    schema = ResetPassword()
+    try:
+        data = schema.load(request.get_json())
+        logger.info("POST api/auth/reset_password requested ...")
+    except ValidationError as err:
+        logger.error(f"Input error {err.messages}")
+        return handle_marshmallow_error(err)
+
+    user = User.query.filter_by(id=user_id, email=email).first()
+
+    if not user:
+        logger.error(
+            f"User not found: user_id={user_id}, email={
+                email}, ip={request.addr}"
+        )
+        not_found(msg="User not found ")
+
+    password_reset = (
+        PasswordReset.query.filter_by(user_id=user.id)
+        .order_by(PasswordReset.created_at.desc())
+        .first()
+    )
+
+    try:
+        new_password = bcrypt.generate_password_hash(data["new_password"])
+        user.password = new_password
+
+        if password_reset:
+            password_reset.used = True
+            db.session.commit()
+        logger.info(f"Password reset Sucessfull for user_id = {user_id}")
+        return jsonify({"message": "Password created Sucessfully"}), 200
+    except Exception as e:
+        if password_reset:
+            password_reset.attempts += 1
+            db.session.commit()
+        logger.error(f"Error ocurred in updating password: {e}")
+        internal_server_error()

@@ -48,7 +48,7 @@ class PasswordReset(db.Model):
     __tablename__ = "password_resets"
 
     id = db.Column(db.Integer, primary_key=True)
-    reset_token = db.Column(db.String(255), nullable=False)
+    reset_token = db.Column(db.String(512), nullable=False)
     expired_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(
         db.DateTime(timezone=True),
