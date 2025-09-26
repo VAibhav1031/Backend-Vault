@@ -142,7 +142,7 @@ def otp_token_chk(func):
 def reset_token_chk(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        auth_header = request.headers.get("Authentication")
+        auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             logger.warning("Token Error: Token is missing")
             return unauthorized_error(msg="token error", reason="token is missing")
@@ -155,17 +155,22 @@ def reset_token_chk(func):
 
         user_id, email = result
 
-        reset_record = PasswordReset.query.filter_by(user_id=user_id).first()
+        reset_record = (
+            PasswordReset.query.filter_by(user_id=user_id)
+            .order_by(PasswordReset.created_at.desc())
+            .first()
+        )
 
         if reset_record:
             if reset_record.used:
+                logger.info(f"Password reset  used {reset_record.used}")
                 logger.warning(
                     f"Password Reset Token already used  for user_id={user_id}"
                 )
                 return bad_request(
                     msg="",
                     reason="This reset token was already used",
-                    details={"retry-after": 30, "ip": request.addr},
+                    details={"retry-after": 30, "ip": request.remote_addr},
                 )
 
             if reset_record.attempts >= 3:

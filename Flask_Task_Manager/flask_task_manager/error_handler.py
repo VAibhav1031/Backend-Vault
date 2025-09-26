@@ -14,14 +14,16 @@ def _make_instance():
     return f"{request.path}#{uuid.uuid4()}"
 
 
-def error_response(code, status, message=None, reason=None, details=None):
+def error_response(
+    code, status, error_type=None, message=None, reason=None, details=None
+):
     return (
         jsonify(
             {
                 "errors": {
                     "code": code,
                     # machine-readable , maybe in future i will add something in here like url or something URL+code.lower()
-                    "type": code.lower(),
+                    "type": error_type or code.lower(),
                     "status": status,
                     "message": message or central_registry.get(code, "Unknown error"),
                     "reason": reason,
@@ -37,11 +39,13 @@ def error_response(code, status, message=None, reason=None, details=None):
 # bad request means something you have done which is not intended to happen
 
 
-def bad_request(msg=None, details=None):
+def bad_request(error_type=None, msg=None, details=None, reason=None):
     return error_response(
         code="BAD_REQUEST",
+        error_type=error_type,
         status=400,
         message=msg,
+        reason=reason,
         details=details,
     )
 

@@ -18,6 +18,7 @@ from flask_task_manager.error_handler import (
     unauthorized_error,
     internal_server_error,
     forbidden_access,
+    bad_request,
 )
 from flask_task_manager.schemas import (
     RegisterSchema,
@@ -27,6 +28,7 @@ from flask_task_manager.schemas import (
     ResetPassword,
     VerifyOtp,
 )
+import sqlalchemy
 import logging
 import datetime
 
@@ -70,7 +72,7 @@ def signup():
                     user_name} user_id={new_user.id}")
         return jsonify({"message": f"{user_name} user created Sucessfully"}), 201
 
-    except Exception as e:
+    except sqlalchemy.exc.SQLAlchemyError as e:
         logger.error(
             f"Error in creating user: username={
                 user_name}email={email} error={e}"
@@ -152,7 +154,7 @@ def forget_password():
             return internal_server_error()
     else:
         logger.error(f"User not found with  : email = {data['email']}")
-        not_found(msg="User not found")
+        return not_found(msg="User not found")
 
 
 @auth.route("/auth/verify-otp", methods=["POST"])
@@ -214,7 +216,7 @@ def reset_password(user_id, email):
     schema = ResetPassword()
     try:
         data = schema.load(request.get_json())
-        logger.info("POST api/auth/reset_password requested ...")
+        logger.info("POST api/auth/reset-password requested ...")
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
@@ -233,19 +235,36 @@ def reset_password(user_id, email):
         .order_by(PasswordReset.created_at.desc())
         .first()
     )
-
+    # in future we can also think to implement ip ban for particular time period
     try:
-        new_password = bcrypt.generate_password_hash(data["new_password"])
-        user.password = new_password
+        if bcrypt.check_password_hash(user.password_hash, data["new_password"]):
+            return bad_request(
+                error_type="PasswordReuseNotAllowed",
+                msg="New password must be different from the old one",
+            )
+        new_password = bcrypt.generate_password_hash(
+            data["new_password"]).decode()
 
+        user.password_hash = new_password
         if password_reset:
             password_reset.used = True
-            db.session.commit()
+
+        db.session.commit()
         logger.info(f"Password reset Sucessfull for user_id = {user_id}")
         return jsonify({"message": "Password created Sucessfully"}), 200
-    except Exception as e:
+
+    except sqlalchemy.exc.SQLAlchemyError as e:
+        db.session.rollback()
         if password_reset:
             password_reset.attempts += 1
             db.session.commit()
         logger.error(f"Error ocurred in updating password: {e}")
-        internal_server_error()
+        return internal_server_error()
+
+    except Exception as e:
+        db.session.rollback()
+        if password_reset:
+            password_reset.attempts += 1
+            db.session.commit()
+        logger.error(f"Error ocurred in updating password: {e}")
+        return internal_server_error()

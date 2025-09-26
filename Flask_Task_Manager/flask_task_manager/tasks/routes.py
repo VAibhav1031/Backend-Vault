@@ -81,7 +81,8 @@ def filter_manager(completion, title: str, after_str: str, before_str: str, quer
                 e}, Use ISO 8601 UTC , eg 2025-09-11T18:30:00Z"
         )
         return bad_request(
-            msg="Invalid Datetime",
+            type="InvalidDatetime",
+            msg="Invalid Datetime used other than the standard one",
             details=f"Invalid datetime format {
                 e
             }, Use ISO 8601 UTC , eg 2025-09-11T18:30:00Z",
