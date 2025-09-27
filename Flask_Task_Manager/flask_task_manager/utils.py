@@ -58,12 +58,13 @@ def decode_access_token(token):
         payload = jwt.decode(
             token, current_app.config["SECRET_KEY"], algorithms="HS256"
         )
-        return payload["user_id"]
+        if "user_id" in payload:
+            return ("ok", payload["user_id"])
 
     except jwt.ExpiredSignatureError:
-        return "token expired"  # token_expired
+        return ("token expired", None)  # token_expired
     except jwt.InvalidTokenError:
-        return "token invalid"  # invalid
+        return ("token invalid", None)  # invalid
 
 
 # you know for thiss password
@@ -72,12 +73,13 @@ def decode_reset_token(token):
         payload = jwt.decode(
             token, current_app.config["SECRET_KEY"], algorithms="HS256"
         )
-        return (payload["otp"], payload["email"])
+        if "otp" in payload and "email" in payload:
+            return ("ok", (payload["otp"], payload["email"]))
 
     except jwt.ExpiredSignatureError:
-        return "token expired"  # token_expired
+        return ("token expired", None)  # token_expired
     except jwt.InvalidTokenError:
-        return "token invalid"  # invalid
+        return ("token invalid", None)  # invalid
 
 
 def decode_password_reset_token(token):
@@ -85,12 +87,13 @@ def decode_password_reset_token(token):
         payload = jwt.decode(
             token, current_app.config["SECRET_KEY"], algorithms="HS256"
         )
-        return (payload["user_id"], payload["email"])
+        if "user_id" in payload and "email" in payload:
+            return ("ok", (payload["user_id"], payload["email"]))
 
     except jwt.ExpiredSignatureError:
-        return "token expired"  # token_expired
+        return ("token expired", None)  # token_expired
     except jwt.InvalidTokenError:
-        return "token invalid"  # invalid
+        return ("token invalid", None)  # invalid
 
 
 # -----------------
@@ -108,11 +111,12 @@ def token_required(func):
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
-        user_id = decode_access_token(token)
-        if not isinstance(user_id, int):
-            logger.warning(f"Token Error: {user_id}")
-            return unauthorized_error(msg="token error", reason=user_id)
-        return func(user_id, *args, **kwargs)
+        status, data = decode_access_token(token)
+        if status == "ok":
+            return func(data, *args, **kwargs)
+        else:
+            logger.error(f"Token Error: {data}")
+            return unauthorized_error(msg="token error", reason=status)
 
     return wrapper
 
@@ -129,12 +133,13 @@ def otp_token_chk(func):
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
-        result = decode_reset_token(token)
-        if not isinstance(result, tuple):
-            logger.warning(f"Token Error: {result}")
-            return unauthorized_error(msg="token error", reason=result)
-        otp, email = result
-        return func(otp, email, *args, **kwargs)
+        status, data = decode_reset_token(token)
+        if status == "ok":
+            otp, email = data
+            return func(otp, email, *args, **kwargs)
+        else:
+            logger.warning(f"Token Error: {status}")
+            return unauthorized_error(msg="token error", reason=status)
 
     return wrapper
 
@@ -148,38 +153,39 @@ def reset_token_chk(func):
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
-        result = decode_password_reset_token(token)
-        if not isinstance(result, tuple):
-            logger.warning(f"Token Error: {result}")
-            return unauthorized_error(msg="token error", reason=result)
+        status, data = decode_reset_token(token)
+        if status == "ok":
+            user_id, email = data
 
-        user_id, email = result
+            reset_record = (
+                PasswordReset.query.filter_by(user_id=user_id)
+                .order_by(PasswordReset.created_at.desc())
+                .first()
+            )
 
-        reset_record = (
-            PasswordReset.query.filter_by(user_id=user_id)
-            .order_by(PasswordReset.created_at.desc())
-            .first()
-        )
+            if reset_record:
+                if reset_record.used:
+                    logger.info(f"Password reset  used {reset_record.used}")
+                    logger.warning(
+                        f"Password Reset Token already used  for user_id={
+                            user_id}"
+                    )
+                    return bad_request(
+                        msg="",
+                        reason="This reset token was already used",
+                        details={"retry-after": 30, "ip": request.remote_addr},
+                    )
 
-        if reset_record:
-            if reset_record.used:
-                logger.info(f"Password reset  used {reset_record.used}")
-                logger.warning(
-                    f"Password Reset Token already used  for user_id={user_id}"
-                )
-                return bad_request(
-                    msg="",
-                    reason="This reset token was already used",
-                    details={"retry-after": 30, "ip": request.remote_addr},
-                )
+                if reset_record.attempts >= 3:
+                    return too_many_requests(
+                        msg="Attempt Exceeded for the resetting password",
+                        reason="You have exceeded maximum allowed attempts. ",
+                    )
 
-            if reset_record.attempts >= 3:
-                return too_many_requests(
-                    msg="Attempt Exceeded",
-                    reason="You have exceeded maximum allowed attempts. ",
-                )
-
-        return func(user_id, email, *args, **kwargs)
+            return func(user_id, email, *args, **kwargs)
+        else:
+            logger.warning(f"Token Error: {status}")
+            return unauthorized_error(msg="token error", reason=status)
 
     return wrapper
 
