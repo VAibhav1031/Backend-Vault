@@ -153,7 +153,7 @@ def reset_token_chk(func):
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
-        status, data = decode_reset_token(token)
+        status, data = decode_password_reset_token(token)
         if status == "ok":
             user_id, email = data
 
