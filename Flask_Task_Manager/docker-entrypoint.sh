@@ -29,3 +29,8 @@ flask --app run.py db upgrade
 
 echo "Startting the flask application...."
 exec uv run python run.py
+
+# flow is  like this   check_if_db_is_ready -> check_migration_folder -> if the migrations script not there -> create_initials & migrate -> db upgrade --> run application
+
+# few point if  i make changes in the migration folder in the host and  run the application again and all
+# when it is running and when not

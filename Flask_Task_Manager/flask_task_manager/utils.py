@@ -121,9 +121,6 @@ def token_required(func):
     return wrapper
 
 
-# Authentication: Bearer <your_jwt_here> the  payload must be this  when it is sent  by the recipients
-
-
 def otp_token_chk(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -133,7 +130,10 @@ def otp_token_chk(func):
             return unauthorized_error(msg="token error", reason="token is missing")
 
         token = auth_header.split(" ")[1]
+        # if decode_reset_token(token):
+        #
         status, data = decode_reset_token(token)
+        logger.info(f"{status}{data}")
         if status == "ok":
             otp, email = data
             return func(otp, email, *args, **kwargs)
@@ -165,23 +165,23 @@ def reset_token_chk(func):
 
             if reset_record:
                 if reset_record.used:
-                    logger.info(f"Password reset  used {reset_record.used}")
-                    logger.warning(
+                    logger.error(
                         f"Password Reset Token already used  for user_id={
                             user_id}"
                     )
                     return bad_request(
                         msg="",
                         reason="This reset token was already used",
-                        details={"retry-after": 30, "ip": request.remote_addr},
                     )
 
-                if reset_record.attempts >= 3:
+                if reset_record.attempts >= 4:
+                    logger.error("Attempt exceeded for the resetting password")
                     return too_many_requests(
                         msg="Attempt Exceeded for the resetting password",
                         reason="You have exceeded maximum allowed attempts. ",
                     )
 
+            logger.warning(f"the attempts value is {reset_record.attempts}")
             return func(user_id, email, *args, **kwargs)
         else:
             logger.warning(f"Token Error: {status}")

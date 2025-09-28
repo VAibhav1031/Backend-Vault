@@ -214,19 +214,12 @@ def verify_otp(token_otp, token_email):
 @reset_token_chk
 def reset_password(user_id, email):
     schema = ResetPassword()
-    try:
-        data = schema.load(request.get_json())
-        logger.info("POST api/auth/reset-password requested ...")
-    except ValidationError as err:
-        logger.error(f"Input error {err.messages}")
-        return handle_marshmallow_error(err)
-
     user = User.query.filter_by(id=user_id, email=email).first()
 
     if not user:
         logger.error(
             f"User not found: user_id={user_id}, email={
-                email}, ip={request.addr}"
+                email}, ip={request.remot_addr}"
         )
         not_found(msg="User not found ")
 
@@ -235,9 +228,24 @@ def reset_password(user_id, email):
         .order_by(PasswordReset.created_at.desc())
         .first()
     )
+
+    try:
+        data = schema.load(request.get_json())
+        logger.info("POST api/auth/reset-password requested ...")
+    except ValidationError as err:
+        if password_reset:
+            password_reset.attempts += 1
+            db.session.commit()
+        logger.error(f"Input error {err.messages}")
+        return handle_marshmallow_error(err)
+
     # in future we can also think to implement ip ban for particular time period
     try:
         if bcrypt.check_password_hash(user.password_hash, data["new_password"]):
+            if password_reset:
+                password_reset.attempts += 1
+                db.session.commit()
+
             return bad_request(
                 error_type="PasswordReuseNotAllowed",
                 msg="New password must be different from the old one",
@@ -248,23 +256,14 @@ def reset_password(user_id, email):
         user.password_hash = new_password
         if password_reset:
             password_reset.used = True
-
         db.session.commit()
         logger.info(f"Password reset Sucessfull for user_id = {user_id}")
         return jsonify({"message": "Password created Sucessfully"}), 200
 
     except sqlalchemy.exc.SQLAlchemyError as e:
-        db.session.rollback()
-        if password_reset:
-            password_reset.attempts += 1
-            db.session.commit()
         logger.error(f"Error ocurred in updating password: {e}")
         return internal_server_error()
 
     except Exception as e:
-        db.session.rollback()
-        if password_reset:
-            password_reset.attempts += 1
-            db.session.commit()
         logger.error(f"Error ocurred in updating password: {e}")
         return internal_server_error()
