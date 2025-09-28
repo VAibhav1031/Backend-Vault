@@ -52,9 +52,9 @@ The main application file handles initialization and attaches all components as 
 - `DELETE /api/tasks` - Delete all tasks
 - `DELETE /api/tasks/task-id` - Delete specific task
 
-Routes are organized into AUTH and TASKS modules, each with validation using **Marshmallow** for JSON data validation including size, type, and content constraints.
+Routes are organized into **AUTH** and **TASKS** modules, each with validation using **Marshmallow** for JSON data validation including size, type, and content constraints.
 
-## Error Handling::
+## Error Handling:
 
 Standardized error response structure used across all endpoints:
 
@@ -80,22 +80,22 @@ def error_response(code, status, message=None, reason=None, details=None):
 
 Supported error types/used in this project : internal_server_error, not_found, bad_request, unauthorized_error, too_many_requests, forbidden_access
 
-## Logging::
+## Logging:
 
 Custom logging configuration using Python's logging library with dictConfig:
 - Stream and file logging support
 - Scalable to external services (ELK stack)
 - Root logging structure with module-level propagation
 
-## Database Migration::
+## Database Migration:
 
 - **Development**: Managed by Alembic through Docker scripts
 - **Testing**: Uses SQLite in-memory (no migration needed)
 - **Production**: Alembic migration management
 
-## Usage::
+## Usage:
 
-### Quick Start
+### Quick Start::
 
 ```bash
 # Start the application
