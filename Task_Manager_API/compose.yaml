@@ -4,8 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-       - ./migrations:/task_app/migrations
-    #
+       - ./migrations:/task_app/migrations 
 
     # The ports mapping, that your application needed when you start
     ports:
@@ -21,10 +20,15 @@ services:
       DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
       DEV_DB_NAME: ${DEV_DB_NAME}
       DEV_DB_PORT: 5432
+      REDIS_HOST: redis 
+      REDIS_PORT: 6379
     
     depends_on:
       dev-db:
         condition: service_healthy
+
+      redis:
+        condition: service_started 
     
     # It is a little bit interesting section, like whenever you make changes in the code in the file, and compose watch catches that it rebuilds the image
     # Sometimes it reloads the container
@@ -64,6 +68,22 @@ services:
       retries: 10
       start_period: 30s
 
+
+  redis:
+    image: redis:8.2
+    container_name: redis_server
+    ports: 
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data 
+
+    command: ["redis-server", "--appendonly", "yes"]
+
+
 volumes:
   task_app_data:
+    name: task_app_data
+  redis_data:
+    name: redis_data
 

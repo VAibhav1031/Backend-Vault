@@ -35,6 +35,7 @@ dependencies = [
     "mypy-extensions>=1.1.0",
     "flask-jwt>=0.2.0",
     "pyjwt>=2.10.1",
+    "redis>=6.4.0",
 ]
 
 [project.optional-dependencies]

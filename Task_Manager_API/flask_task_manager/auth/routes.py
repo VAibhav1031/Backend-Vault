@@ -33,6 +33,8 @@ import logging
 import datetime
 
 
+from middleware.rate_limiter import rate_limit
+
 logger = logging.getLogger(__name__)
 
 auth = Blueprint("auth", __name__, url_prefix="/api/")
@@ -84,6 +86,7 @@ def signup():
 
 
 @auth.route("/auth/login", methods=["POST"])
+@rate_limit("login", 5, 60)
 def login():
     schema = LoginSchema()
     try:
@@ -92,8 +95,9 @@ def login():
     except ValidationError as err:
         logger.error(f"Input error {err.messages}")
         return handle_marshmallow_error(err)
-
+    email_flag = False
     if data.get("email"):
+        email_flag = True
         # /one()  we can use that since there will only user with that username
         user = User.query.filter_by(email=data["email"]).first()
         if not user:
@@ -106,7 +110,7 @@ def login():
     if not user or not bcrypt.check_password_hash(user.password_hash, data["password"]):
         logger.warning(
             f"Failed login attempt: for identifier={
-                data['email'] or data['username']
+                data['email'] if email_flag else data['username']
             } from IP={
                 request.remote_addr
             } "  # will work if you dont deploy it on the server with reverse proxy nginx,
