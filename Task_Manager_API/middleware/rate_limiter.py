@@ -55,7 +55,7 @@ def per_user():
 # ############################################################################################
 
 
-def sliding_window(window_queue, window_size, limit, arrival_time=None):
+def sliding_window(window_queue, window_size, limit, key_ip, arrival_time=None):
     # i think  first  check should be the  that the currently the incoming  request can be entertained or Not
     # why add to the deque if it is  not  valid just dont allow
 
@@ -65,6 +65,8 @@ def sliding_window(window_queue, window_size, limit, arrival_time=None):
     while window_queue and window_queue[0] <= (arrival_time - window_size):
         window_queue.popleft()
 
+    if not window_queue:
+        del ip_queue[key_ip]
     if len(window_queue) >= limit:
         return False
 
@@ -77,9 +79,10 @@ def rate_limit(key_prefix, limit, window_size):
         @wraps(f)
         def wrapper(*args, **kwargs):
             ip = request.remote_addr
-            window_queue = ip_queue[ip]
+            key_ip = f"{key_prefix}:{ip}"
+            window_queue = ip_queue[key_ip]
 
-            if sliding_window(window_queue, window_size, limit):
+            if sliding_window(window_queue, key_ip, window_size, limit):
                 return f(*args, **kwargs)
 
             else:
