@@ -19,6 +19,7 @@ from flask_task_manager.error_handler import (
     internal_server_error,
     forbidden_access,
     bad_request,
+    too_many_requests,
 )
 from flask_task_manager.schemas import (
     RegisterSchema,
@@ -30,14 +31,20 @@ from flask_task_manager.schemas import (
 )
 import sqlalchemy
 import logging
+import time
 import datetime
 
-
-from middleware.rate_limiter import rate_limit
+from collections import defaultdict, deque
+from middleware.rate_limiter import rate_limit, sliding_window_per_user
 
 logger = logging.getLogger(__name__)
 
 auth = Blueprint("auth", __name__, url_prefix="/api/")
+
+
+per_user_queue = defaultdict(deque)
+WINDOW_SIZE = 15 * 60
+LIMIT = 5
 
 
 @auth.route("/auth/signup", methods=["POST"])
@@ -89,6 +96,7 @@ def signup():
 @auth.route("/auth/login", methods=["POST"])
 @rate_limit("login", 5, 60)
 def login():
+    now = time.time()
     schema = LoginSchema()
     try:
         data = schema.load(request.get_json())
@@ -99,32 +107,51 @@ def login():
 
     email_log_flag = False
 
+    # FLexibility [User can use username or email to login]
     if data.get("email"):
         email_log_flag = True
-        # /one()  we can use that since there will only user with that username
         user = User.query.filter_by(email=data["email"]).first()
         if not user:
-            logger.warning("There is Error, unable to query")
+            logger.error(f"User not found with email = {data['email']}")
+            return not_found()
+
         logger.info(f"User used email={data['email']} as the login")
     else:
         user = User.query.filter_by(username=data["username"]).first()
+        if not user:
+            logger.error(f"User not found with email = {data['email']}")
+            return not_found()
         logger.info(f"User used username={data['username']}")
 
+    # Common Identifier
+    identifier = f"{data['email'] if email_log_flag else data['username']}"
+
+    # PER_USER RATE LIMIT Check
+    if not sliding_window_per_user(
+        per_user_queue[identifier],
+        window_size=WINDOW_SIZE,
+        limit=LIMIT,
+        arrival_time=now,
+    ):
+        return too_many_requests(msg="Rate limit Exceeded")
+
+    # ### Password Authentication####
     if not user or not bcrypt.check_password_hash(user.password_hash, data["password"]):
         logger.warning(
-            f"Failed login attempt: for identifier={
-                data['email'] if email_log_flag else data['username']
-            } from IP={
+            f"Failed login attempt: for identifier={identifier} from IP={
                 request.remote_addr
             } "  # will work if you dont deploy it on the server with reverse proxy nginx,
         )
+        per_user_queue[identifier].append(now)
         return unauthorized_error(msg="Invalid Credentials")
 
+    # ###Token Generation ####
     try:
         token = generate_token(user.id)
         # here we have to give the jwt token for future
         if token:
             logger.info("Token is generated")
+            per_user_queue[identifier].clear()
             return jsonify({"token": token})
 
     except Exception as e:

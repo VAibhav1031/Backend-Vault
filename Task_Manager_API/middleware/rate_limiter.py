@@ -1,6 +1,7 @@
 import time
 from functools import wraps
 from flask import request
+from flask_task_manager import logging
 
 # import redis
 from flask_task_manager.utils import too_many_requests
@@ -20,34 +21,8 @@ from collections import defaultdict, deque
 # )
 #
 
-
+logger = logging.getLogger(__name__)
 ip_queue = defaultdict(deque)
-
-GLOBAL_LIMIT = 2000
-
-
-def global_limit(current_counter: int):
-    # layer 1 [total request , and all stuff, sliding window rate limiter ]
-    # 2000/hour TTL
-    if current_counter >= GLOBAL_LIMIT:
-        return too_many_requests(
-            msg="Service  Got more request than it required in mean time"
-        )
-
-
-def per_ip(ip, current_count, limit):
-    # layer 2 [check the per ip request if it is increase than required this brother is banned for 20-30 minutes]
-    # sliding window rate limiter
-    # 5 request/min TTL
-    if current_count > limit:
-        return too_many_requests(msg="Same Ip done more request than required")
-
-
-def per_user():
-    # layer 3 [check the failure of the login or signups ]
-    # only failure based 5 failed login will ban the user for 15 minute from accessing that particular user and all
-    # to check if he had any f
-    pass
 
 
 ##############################################################################################
@@ -65,8 +40,10 @@ def sliding_window(window_queue, window_size, limit, key_ip, arrival_time=None):
     while window_queue and window_queue[0] <= (arrival_time - window_size):
         window_queue.popleft()
 
-    if not window_queue:
+    logger.info(f"window_queue : {window_queue}")
+    if not window_queue and key_ip in window_queue:
         del ip_queue[key_ip]
+
     if len(window_queue) >= limit:
         return False
 
@@ -74,15 +51,26 @@ def sliding_window(window_queue, window_size, limit, key_ip, arrival_time=None):
     return True
 
 
+def sliding_window_per_user(window_queue, window_size, limit, arrival_time):
+    # but how  we get the  username i thought , then this  came to my mind first decorator run would be the app.route one
+    # then we can use the  request function to get the username and do a sruff
+    while window_queue and window_queue[0] <= (arrival_time - window_size):
+        window_queue.popleft()
+    if len(window_queue) >= limit:
+        return False
+
+    return True
+
+
 def rate_limit(key_prefix, limit, window_size):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            ip = request.remote_addr
+            ip = request.headers.get("X-Forwarded-For", request.remote_addr)
             key_ip = f"{key_prefix}:{ip}"
             window_queue = ip_queue[key_ip]
 
-            if sliding_window(window_queue, key_ip, window_size, limit):
+            if sliding_window(window_queue, window_size, limit, key_ip):
                 return f(*args, **kwargs)
 
             else:

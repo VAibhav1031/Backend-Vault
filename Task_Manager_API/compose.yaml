@@ -73,7 +73,7 @@ services:
     image: redis:8.2
     container_name: redis_server
     ports: 
-      - "6379:6379"
+      - "6380:6379"
 
     volumes:
       - redis_data:/data 
