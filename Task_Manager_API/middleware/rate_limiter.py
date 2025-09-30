@@ -74,6 +74,7 @@ def rate_limit(key_prefix, limit, window_size):
                 return f(*args, **kwargs)
 
             else:
+                logger.error(f"Blocked IP : {ip} for too many request ")
                 return too_many_requests(msg="Rate Limit Exceeded ::) ")
 
         return wrapper

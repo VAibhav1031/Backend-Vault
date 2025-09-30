@@ -133,6 +133,7 @@ def login():
         limit=LIMIT,
         arrival_time=now,
     ):
+        logger.error(f"Blocker user with {identifier}, Rate limit exceeded")
         return too_many_requests(msg="Rate limit Exceeded")
 
     # ### Password Authentication####
